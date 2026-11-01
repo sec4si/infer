@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<script>let lang; try { lang = localStorage.getItem('lang') } catch {} if (lang ? lang === 'zh' : /^zh\b/i.test(navigator.language || '')) document.documentElement.lang = 'zh-CN'</script>
+<meta name="theme-color" content="#060a12"><meta name="description" content="GPU memory, RAM and disk are all places to keep a model, at different speeds. Heterogeneous inference puts every tier to work, and the real bottleneck is moving data between them."><link rel="canonical" href="https://infer.sec4.si/research/hetero/"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/styles.css"><title>Heterogeneous inference — Infer</title></head>
+<body><a class="skip" href="#main"><span lang="en">Skip to content</span><span lang="zh-CN">跳到正文</span></a>
+<header class="site-header"><a class="brand" href="https://sec4.si/" aria-label="sec4.si home"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 5v22h7M28 5v22h-7"/><path class="slash" d="m19 6-6 20"/></svg><span>sec4<span class="dot">.</span>si</span></a><span class="project-breadcrumb mono">/ infer</span><nav aria-label="Project navigation"><a href="https://benchmark.sec4.si/">Benchmark</a><a href="https://lens.sec4.si/">Lens</a><a href="https://infer.sec4.si/">Infer</a><a href="/#research" aria-current="page"><span lang="en">Research</span><span lang="zh-CN">研究</span></a><button class="lang-switch mono" type="button" aria-label="Switch language / 切换语言"><span class="en-mark">EN</span> / <span class="zh-mark">中</span></button><a class="repo-link" href="https://github.com/sec4si/infer">GitHub <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 18 18 6M6 6h12v12"/></svg></a></nav></header>
+
+<main id="main" class="article">
+<header class="article-head">
+  <a class="back mono" href="/#research">← <span lang="en">Research</span><span lang="zh-CN">研究</span></a>
+  <div class="eyebrow mono"><span class="cross" aria-hidden="true"></span> RESEARCH / 2026-11-02</div>
+  <h1><span lang="en">Heterogeneous inference: putting every tier of storage to work</span><span lang="zh-CN">异构推理：把每一层存储都用起来</span></h1>
+  <p class="dek"><span lang="en">GPU memory, RAM and disk are all places to keep a model; they differ only in speed. Heterogeneous inference spreads a model that does not fit across all of them, and its hardest problem is not any one tier but the traffic between them.</span><span lang="zh-CN">显存、内存、硬盘，本质上都是存放模型的地方，只是快慢不同。异构推理，就是把一个装不下的模型分住到每一层里；它最难的问题不在哪一层本身，而在层与层之间的搬运。</span></p>
+  <p class="byline mono">sec4si · ZacharyZcR</p>
+</header>
+
+<div class="prose">
+  <p><span lang="en">GLM-5.2 has 744 billion parameters. Stored at 4 bits it is still about 370 GB, more than four H100s can hold. Yet <a href="https://github.com/JustVugg/colibri">colibri</a>, an open-source inference engine we are among the core authors of, runs it on a laptop with 25 GB of RAM.<sup><a href="#ref-1">1</a></sup> Slowly: under one word every ten seconds. On a machine with six RTX 5090s, the same engine and the same file run at six words a second.</span><span lang="zh-CN">GLM-5.2 有 7440 亿个参数，用 4 位来存也要 370 GB 左右，比四块 H100 的显存加起来还大。可我们参与开发的开源推理引擎 <a href="https://github.com/JustVugg/colibri">colibri</a>（我们是它的核心作者之一），能让它在一台只有 25 GB 内存的笔记本上跑起来。<sup><a href="#ref-1">1</a></sup>很慢，十几秒才出一个词。换到一台装了六张 RTX 5090 的机器上，同一个引擎、同一份模型文件，每秒能出六个词。</span></p>
+  <p><span lang="en">Nothing about the model changed between the two. Only where its pieces lived. That is what this article is about.</span><span lang="zh-CN">两台机器之间，模型本身没有任何变化，变的只是它的各个部分住在哪里。这篇文章讲的就是这件事。</span></p>
+  <p><span lang="en">Think of a kitchen. The spices by the stove are the GPU’s on-chip caches; the fridge is GPU memory; the pantry is RAM; the warehouse downstairs is the disk. Each is bigger and slower than the last. How fast the cook works depends less on the cook than on how quickly ingredients arrive. We make three points, all in that kitchen:</span><span lang="zh-CN">打个比方：一间厨房。灶台边的调料是 GPU 芯片上的缓存，冰箱是显存，储藏室是内存，楼下仓库是硬盘。一层比一层大，也一层比一层远。厨师做菜快不快，与其说看厨师，不如说看食材送得多快。这篇文章讲三件事，都在这间厨房里：</span></p>
+  <ol>
+    <li><span lang="en"><b>Every tier is storage.</b> They differ only in speed, and the work is to make each faster and to put each piece of the model on the right one.</span><span lang="zh-CN"><b>每一层都是存储</b>，只是快慢不同。要做的，是让每一层变快，并把模型的每一部分放到合适的那一层。</span></li>
+    <li><span lang="en"><b>Slow space might buy time.</b> A model can keep a huge memory that it reads only a pinch of at a time, and that memory can live in the slowest, cheapest tier.</span><span lang="zh-CN"><b>慢的空间，也许能换来时间。</b>模型可以带着一块巨大的、每次只取一小撮的记忆，而这块记忆可以放在最慢、最便宜的那一层。</span></li>
+    <li><span lang="en"><b>The stairs are the bottleneck.</b> What limits heterogeneous inference most is how fast data moves between tiers.</span><span lang="zh-CN"><b>楼梯才是瓶颈。</b>真正卡住异构推理的，是数据在层与层之间搬运的速度。</span></li>
+  </ol>
+</div>
+
+<div class="prose"><h2><span lang="en">1. Every tier is storage</span><span lang="zh-CN">一、每一层都是存储</span></h2></div>
+
+<section class="scrolly-block" data-chapter="1">
+  <div class="scrolly">
+    <div class="steps">
+      <article class="step">
+        <span class="step-no mono">1.1</span>
+        <h3><span lang="en">A ladder of storage.</span><span lang="zh-CN">一条存储阶梯。</span></h3>
+        <p><span lang="en">Line up the places a machine can keep numbers, from the chip outward. Each step down holds far more and delivers far less per second, often by a factor of ten or more. None of them is “memory” and the rest “storage”: they are all storage, at different distances from where the computing happens.</span><span lang="zh-CN">把一台机器能存数字的地方，从芯片往外排一排。每往下一级，能装的多得多，每秒能送出来的少得多，常常一差就是十倍以上。它们之间并没有“内存”和“存储”的分别：都是存储，只是离计算的地方远近不同。</span></p>
+        <p class="hint mono"><span lang="en">Switch between capacity and bandwidth.</span><span lang="zh-CN">切换容量和带宽。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">1.2</span>
+        <h3><span lang="en">Same model, four kitchens.</span><span lang="zh-CN">同一个模型，四间厨房。</span></h3>
+        <p><span lang="en">GLM-5.2 is a mixture-of-experts model: each word uses only a few of its experts. colibri keeps the small always-used part in RAM and reads experts from wherever they are when the model asks. Here is the same engine and model on four real machines. What changes is the share of expert reads served from a fast tier, and the speed follows it.</span><span lang="zh-CN">GLM-5.2 是混合专家模型，每个词只用到其中几个专家。colibri 把每次都要用的那一小部分放在内存里，专家则在模型需要时，从它所在的地方读出来。下面是同一个引擎、同一个模型，在四台真实机器上的表现。变化的是专家读取里有多少由快的层级接住，速度跟着它走。</span></p>
+        <p class="hint mono"><span lang="en">Switch machines.</span><span lang="zh-CN">换一台机器。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">1.3</span>
+        <h3><span lang="en">Seat the regulars by the stove.</span><span lang="zh-CN">常用的，放在手边。</span></h3>
+        <p><span lang="en">Some experts are used far more than others, and which ones depends on what you ask. colibri records which experts your own conversations route to and keeps the hottest ones in the faster tiers, like a compiler that only optimises the code that actually runs. On one 128 GB laptop, learning the hot set and giving the cache room to hold it raised the share of fast reads from 28% to 66%.</span><span lang="zh-CN">有的专家比别的常用得多，而且哪些常用，取决于你问的是什么。colibri 记下你自己的对话都用到了哪些专家，把最热的那些留在更快的层级里，就像编译器只优化真正在跑的那段代码。在一台 128 GB 的笔记本上，学会哪些专家常用、再给缓存留够地方，快速读取的比例就从 28% 提到了 66%。</span></p>
+        <p class="hint mono"><span lang="en">Before and after learning.</span><span lang="zh-CN">学习前后对比。</span></p>
+        <p class="takeaway"><span lang="en">Heterogeneous inference starts with two jobs: make each tier faster, and put each piece of the model on the tier that fits how often it is used.</span><span lang="zh-CN">异构推理的第一步是两件事：让每一层变快；按使用的频繁程度，把模型的每一部分放到合适的那一层。</span></p>
+      </article>
+    </div>
+    <div class="stage">
+      <div class="stage-meta mono"><span class="stage-fig"></span><span lang="en">DATA: VENDOR SPECS · COLIBRI BENCHMARKS</span><span lang="zh-CN">数据：厂商规格 · colibri 实测</span></div>
+      <div class="stage-scenes"></div>
+    </div>
+  </div>
+</section>
+
+<div class="prose"><h2><span lang="en">2. Can slow space buy time?</span><span lang="zh-CN">二、慢的空间，能换来时间吗</span></h2>
+  <p><span lang="en">The usual way to make a model know more is to make it bigger, which means more computation and more fast memory for every word. DeepSeek’s Engram points to another way.<sup><a href="#ref-2">2</a></sup> Alongside its experts, a model carries huge lookup tables indexed by short runs of words, called n-grams. For each word it looks up only a handful of rows and mixes them in. In DeepSeek V4.1 Flash, those tables are 203 GB, about 40% of the whole model.<sup><a href="#ref-3">3</a></sup></span><span lang="zh-CN">让模型懂得更多，通常的办法是把它做大，也就是每个词都要更多的计算、更多的快速存储。DeepSeek 的 Engram 指出了另一条路。<sup><a href="#ref-2">2</a></sup>模型在专家之外，再带上几张巨大的查找表，表的索引是几个相邻的词，叫 n-gram。每处理一个词，只查其中几十行，把查到的东西混进去。在 DeepSeek V4.1 Flash 里，这些表一共 203 GB，大约占整个模型的 40%。<sup><a href="#ref-3">3</a></sup></span></p>
+</div>
+
+<section class="scrolly-block" data-chapter="2">
+  <div class="scrolly">
+    <div class="steps">
+      <article class="step">
+        <span class="step-no mono">2.1</span>
+        <h3><span lang="en">A truckload, or a pinch.</span><span lang="zh-CN">一车，还是一撮。</span></h3>
+        <p><span lang="en">In DeepSeek V4.1 Flash, each word reads about 4.5 GB of experts but only about 13 KB of Engram rows, over 300,000 times less. Put the experts on a fast SSD and every word waits a third of a second for them. Put Engram there and the wait is a few dozen tiny reads, sent all at once, that a modern SSD finishes in well under a millisecond. The truckload has to live close by; the pinch can live in the warehouse.</span><span lang="zh-CN">在 DeepSeek V4.1 Flash 里，每个词要读约 4.5 GB 的专家，却只读约 13 KB 的 Engram 表，差了 30 多万倍。把专家放在一块很快的固态硬盘上，每个词要为它等三分之一秒；把 Engram 放上去，只是几十次很小的读取，可以同时发出去，一块现代固态硬盘不到一毫秒就能做完。一车的货得放在近处，一撮的可以放在仓库。</span></p>
+        <p class="hint mono"><span lang="en">Switch what is read from disk.</span><span lang="zh-CN">切换从硬盘读的是什么。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">2.2</span>
+        <h3><span lang="en">The address is known in advance.</span><span lang="zh-CN">地址，提前就知道。</span></h3>
+        <p><span lang="en">There is a second reason Engram suits slow storage. Which rows to read depends only on the words themselves, not on anything the model computes along the way. So the reads can be sent the moment the words are known, and by the time the layer that needs them comes round, the data is already there. Experts are different: which ones a word needs is decided inside the model, at the last moment.</span><span lang="zh-CN">Engram 适合放在慢存储上，还有第二个原因：要读哪几行，只取决于词本身，和模型算到一半的结果无关。所以词一到，读取请求就可以发出去；等到真正要用它的那一层，数据早就到了。专家不一样：一个词要用哪几个专家，是模型在内部算到那一层时才决定的。</span></p>
+        <p class="hint mono"><span lang="en">Compare reading late with reading early.</span><span lang="zh-CN">对比“用时再读”和“提前读”。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">2.3</span>
+        <h3><span lang="en">Several terabytes?</span><span lang="zh-CN">扩到几个 TB？</span></h3>
+        <p><span lang="en">What is established: the Engram paper found that with the rest of the model fixed, loss kept falling as a power law as the tables grew, with no sign of saturating, and a 100-billion-parameter table kept in CPU memory cost at most 2.8% of throughput. What is not: nobody has trained a table of several terabytes. The largest trained table we found in public sources is V4.1 Flash’s, about 200 GB. And there is a warning: in Qwen3.8-Flash-Next, a bigger n-gram vocabulary kept lowering loss while downstream accuracy stopped improving.</span><span lang="zh-CN">已经证实的：Engram 论文发现，模型其余部分不变、只把表加大，损失按幂律持续下降，没有饱和的迹象；一张 1000 亿参数的表放在 CPU 内存里，吞吐最多只降 2.8%。还没证实的：没有人训练过几个 TB 的表，公开资料里我们找到的最大的，就是 V4.1 Flash 的这张，约 200 GB。另外有一个警告：在 Qwen3.8-Flash-Next 里，n-gram 词表加大以后，损失还在降，下游任务的准确率却不涨了。</span></p>
+        <p class="hint mono"><span lang="en">Step through what has and has not been done.</span><span lang="zh-CN">看看哪些做过，哪些没做过。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">2.4</span>
+        <h3><span lang="en">A table for each field?</span><span lang="zh-CN">每个领域，一张表？</span></h3>
+        <p><span lang="en">If knowledge lives in a table, could you keep the model and swap the table: one for code, one for medicine, one for a company’s own documents, each sitting on disk until needed? Swapping a memory without retraining has precedent: kNN-LM swapped its text database to adapt to books and cut perplexity from 34.8 to 20.5 with no training at all. But for Engram-style tables, no one has tried it. The backbone was trained together with its table and may not accept a stranger.</span><span lang="zh-CN">如果知识住在表里，能不能模型不动、只换表：代码一张、医疗一张、公司内部文档一张，平时都放在硬盘上，谁用就挂谁的？不重新训练、只换记忆，是有先例的：kNN-LM 把文本库换成书籍，一点不训练，困惑度就从 34.8 降到了 20.5。可对 Engram 这样的表，还没有人试过。模型主干是和它那张表一起训练出来的，未必认得一张陌生的表。</span></p>
+        <p class="hint mono"><span lang="en">Swap the table. A proposal, not a result.</span><span lang="zh-CN">换一张表。这是设想，不是结果。</span></p>
+        <p class="takeaway"><span lang="en">That a huge table can be stored cheaply and read cheaply is shown. Whether it keeps paying at terabyte scale, and whether tables can be swapped, are open questions, and the ones we find most worth asking.</span><span lang="zh-CN">巨大的表放得下、读得起，这一点已经被证明。它到 TB 级还值不值得、能不能换着用，还是开放的问题，也是我们认为最值得追问的问题。</span></p>
+      </article>
+    </div>
+    <div class="stage">
+      <div class="stage-meta mono"><span class="stage-fig"></span><span lang="en">DATA: DEEPSEEK · PAPERS CITED</span><span lang="zh-CN">数据：DeepSeek · 所引论文</span></div>
+      <div class="stage-scenes"></div>
+    </div>
+  </div>
+</section>
+
+<details class="tech"><summary class="mono"><span lang="en">TECHNICAL DETAILS: HOW ENGRAM LOOKS UP A ROW</span><span lang="zh-CN">技术细节：Engram 怎么查一行</span></summary>
+  <p><span lang="en">Token ids are first normalised (case, Unicode forms), which shrinks a 128k vocabulary by 23%. For each position the model takes the suffix n-grams of orders 2 to N; each order has several hash heads, each a multiplicative-XOR hash into a table of prime size. The retrieved vectors act as key and value against the hidden state as query, giving a sigmoid gate on what is added to the residual stream. V4.1 Flash uses orders 2–4 with 8 heads, about 16 million rows per order and head, in layers 1 and 14; rows are FP8 with E8M0 scales. Only rows that are retrieved receive gradient during training.<sup><a href="#ref-2">2</a></sup><sup><a href="#ref-3">3</a></sup></span><span lang="zh-CN">先把 token id 规范化（大小写、Unicode 形式），128k 的词表因此缩小 23%。对每个位置，取 2 到 N 阶的后缀 n-gram；每一阶有几个哈希头，各自用乘法加异或的哈希落到一张素数大小的表里。查到的向量作为 key 和 value，以当前的隐藏状态作为 query，算出一个 sigmoid 门控，决定往残差流里加多少。V4.1 Flash 用 2 到 4 阶、8 个头，每个（阶，头）约 1600 万行，放在第 1 层和第 14 层；每行用 FP8 存，配 E8M0 缩放。训练时，只有被查到的行才会得到梯度。<sup><a href="#ref-2">2</a></sup><sup><a href="#ref-3">3</a></sup></span></p>
+</details>
+
+<div class="prose"><h2><span lang="en">3. The stairs are the bottleneck</span><span lang="zh-CN">三、楼梯才是瓶颈</span></h2></div>
+
+<section class="scrolly-block" data-chapter="3">
+  <div class="scrolly">
+    <div class="steps">
+      <article class="step">
+        <span class="step-no mono">3.1</span>
+        <h3><span lang="en">The stairs are narrower than the rooms.</span><span lang="zh-CN">楼梯比房间窄得多。</span></h3>
+        <p><span lang="en">Inside an H100, GPU memory delivers 3.35 TB a second. The link from RAM into the GPU, PCIe 5.0 with 16 lanes, carries 63 GB a second in each direction: 53 times less. A fast SSD delivers about 15 GB a second: 226 times less. Every time data has to climb a floor, it squeezes through a passage one or two orders of magnitude narrower than the room it is going to.</span><span lang="zh-CN">在一块 H100 里，显存每秒能送出 3.35 TB。从内存送进显卡的通道是 16 条通道的 PCIe 5.0，单向每秒 63 GB，少了 53 倍。一块很快的固态硬盘，每秒约 15 GB，少了 226 倍。数据每上一层楼，都要挤过一条比目的地房间窄一到两个数量级的通道。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">3.2</span>
+        <h3><span lang="en">Widen the stairs, not the cook.</span><span lang="zh-CN">拓宽楼梯，而不是换厨师。</span></h3>
+        <p><span lang="en">colibri’s users have measured this directly. Moving the model to a faster SSD on the same machine nearly tripled speed, until computing became the limit. Reading from two independent SSDs at once added 37.5%. And on a machine waiting on its disk, adding an RTX 5090 made almost no difference: a faster cook does not help when the ingredients are stuck on the stairs.</span><span lang="zh-CN">colibri 的用户直接测出了这一点。同一台机器，把模型换到一块更快的固态硬盘上，速度几乎翻了三倍，直到计算本身成为瓶颈；同时从两块各自独立的固态硬盘读，又快了 37.5%；而在一台卡在硬盘上的机器里，加一张 RTX 5090 几乎没有变化。食材卡在楼梯上的时候，换个更快的厨师没有用。</span></p>
+        <p class="hint mono"><span lang="en">Three real A/B tests.</span><span lang="zh-CN">三组真实的对比。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">3.3</span>
+        <h3><span lang="en">Move the cook, not the ingredients.</span><span lang="zh-CN">让厨师下楼，而不是把食材搬上来。</span></h3>
+        <p><span lang="en">Existing systems split into camps by how they treat the stairs. Some carry weights up to the GPU, and get stuck on PCIe unless huge batches share each trip. Others leave the weights where they are and send the tiny intermediate results down instead, computing on the CPU next to RAM. An expert is about 19 MB; the input it needs for one word is a dozen or so kilobytes. KTransformers puts it plainly: PCIe 4.0 carries 32 GB a second, while two Xeon sockets read their own DDR5 at 440.</span><span lang="zh-CN">已有的系统按“怎么对待楼梯”分成几派。一派把权重搬上显卡，结果卡在 PCIe 上，只能靠很大的批量来分摊每一趟。另一派不搬权重，而是把很小的中间结果送下去，在 CPU 上、紧挨着内存就地计算。一个专家约 19 MB，一个词要交给它的输入只有十几 KB。KTransformers 的论文说得很直白：PCIe 4.0 每秒 32 GB，而两颗 Xeon 读自己的 DDR5，每秒 440 GB。</span></p>
+        <p class="hint mono"><span lang="en">Compare the two strategies.</span><span lang="zh-CN">对比两种做法。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">3.4</span>
+        <h3><span lang="en">Widening the stairs.</span><span lang="zh-CN">楼梯正在变宽。</span></h3>
+        <p><span lang="en">Hardware is moving on this too. NVIDIA’s Grace chips link CPU and GPU at 900 GB/s, counted both ways. Research systems such as BaM let the GPU read SSDs directly, skipping the CPU. And high-bandwidth flash, announced by Sandisk with 512 GB and 1.6 TB/s per stack, aims to put flash right next to the GPU. Its first samples are planned for 2027.</span><span lang="zh-CN">硬件也在往这个方向走。英伟达的 Grace 芯片把 CPU 和 GPU 之间的连接做到每秒 900 GB（双向合计）；BaM 这类研究系统让 GPU 绕开 CPU，直接读固态硬盘；高带宽闪存（HBF）则想把闪存直接放到 GPU 旁边，Sandisk 公布的规格是每堆 512 GB、每秒 1.6 TB，首批样品计划在 2027 年。</span></p>
+        <p class="hint mono"><span lang="en">Step through the new links.</span><span lang="zh-CN">一个个看新的通道。</span></p>
+        <p class="takeaway"><span lang="en">In heterogeneous inference, speed is set less by the fastest tier than by the narrowest passage between tiers. Make it wider, cross it less often, or send the work to the data instead of the data to the work.</span><span lang="zh-CN">异构推理的速度，与其说由最快的那一层决定，不如说由层与层之间最窄的那条通道决定。办法有三个：把它拓宽，少走几趟，或者让计算去找数据，而不是让数据来找计算。</span></p>
+      </article>
+    </div>
+    <div class="stage">
+      <div class="stage-meta mono"><span class="stage-fig"></span><span lang="en">DATA: VENDOR SPECS · COLIBRI BENCHMARKS</span><span lang="zh-CN">数据：厂商规格 · colibri 实测</span></div>
+      <div class="stage-scenes"></div>
+    </div>
+  </div>
+</section>
+
+<div class="prose">
+  <h2><span lang="en">What we will ask next</span><span lang="zh-CN">接下来要回答的问题</span></h2>
+  <p><span lang="en">Each point above leaves a question we can answer with measurements rather than opinions:</span><span lang="zh-CN">上面每一点，都留下了一个可以用测量、而不是靠观点来回答的问题：</span></p>
+  <ol>
+    <li><span lang="en"><b>Placement.</b> Given a machine’s tiers and a model, how close can an automatic planner get to the best placement found by hand?</span><span lang="zh-CN"><b>摆放。</b>给定一台机器的各层存储和一个模型，自动规划能离手工调出的最优摆放有多近？</span></li>
+    <li><span lang="en"><b>Lookup memory.</b> How does Engram’s access pattern change as a table grows, how much of it can a small cache absorb, and does a table trained for one field work when plugged into a frozen backbone?</span><span lang="zh-CN"><b>查表记忆。</b>表变大以后，Engram 的访问分布怎么变？一小块缓存能接住多少？为某个领域训练的一张表，挂到冻结的主干上，能不能用？</span></li>
+    <li><span lang="en"><b>Traffic.</b> For each kind of machine, which passage limits speed, and when does moving computation beat moving weights?</span><span lang="zh-CN"><b>搬运。</b>每一类机器上，卡住速度的是哪一条通道？什么时候“搬计算”胜过“搬权重”？</span></li>
+  </ol>
+  <p><span lang="en">We will publish the answers here, with the methods and the raw data.</span><span lang="zh-CN">答案会发表在这里，连同方法和原始数据。</span></p>
+</div>
+
+<section class="references">
+  <h2><span lang="en">REFERENCES</span><span lang="zh-CN">参考文献</span></h2>
+  <ol>
+    <li id="ref-1">colibri. <a href="https://github.com/JustVugg/colibri">github.com/JustVugg/colibri</a>; machine measurements from its <a href="https://github.com/JustVugg/colibri/blob/main/docs/benchmarks.md">benchmark tables</a>, each linked to the issue that reported it.</li>
+    <li id="ref-2">Cheng et al. <a href="https://arxiv.org/abs/2601.07372">“Conditional Memory via Scalable Lookup: A New Axis of Sparsity for Large Language Models”</a> (2026).</li>
+    <li id="ref-3">DeepSeek V4.1 Flash Engram layout, as read by colibri: <a href="https://github.com/JustVugg/colibri/blob/main/docs/deepseek-v41.md">docs/deepseek-v41.md</a>.</li>
+    <li id="ref-4">Qwen3.8-Flash-Next. <a href="https://arxiv.org/abs/2608.30320">arXiv:2608.30320</a> (2026).</li>
+    <li id="ref-5">Yu et al. <a href="https://arxiv.org/abs/2502.01637">“Scaling Embedding Layers in Language Models”</a> (SCONE, 2025).</li>
+    <li id="ref-6">Khandelwal et al. <a href="https://arxiv.org/abs/1911.00172">“Generalization through Memorization: Nearest Neighbor Language Models”</a> (2020).</li>
+    <li id="ref-7"><a href="https://arxiv.org/abs/2508.09874">Memory Decoder</a> (2025); <a href="https://arxiv.org/abs/2607.07388">TF-Engram</a> (2026).</li>
+    <li id="ref-8">NVIDIA <a href="https://www.nvidia.com/en-us/data-center/h100/">H100</a> and <a href="https://www.nvidia.com/en-us/data-center/grace-hopper-superchip/">Grace Hopper</a>; Samsung <a href="https://www.samsung.com/us/business/computing/memory-storage/solid-state-drives/9100-pro-1tb-ssd-nvme-m-2-mz-vap1t0b-am/">9100 PRO</a>; AMD <a href="https://www.amd.com/en/products/processors/server/epyc/9005-series/amd-epyc-9555.html">EPYC 9555</a>. PCIe figures are per direction, from the 128b/130b encoding.</li>
+    <li id="ref-9">Chen et al. <a href="https://madsys.cs.tsinghua.edu.cn/publication/ktransformers-unleashing-the-full-potential-of-cpu/gpu-hybrid-inference-for-moe-models/SOSP25-chen.pdf">KTransformers</a> (SOSP 2025); Qureshi et al. <a href="https://arxiv.org/abs/2203.04910">BaM</a> (ASPLOS 2023).</li>
+    <li id="ref-10">Sandisk <a href="https://documents.sandisk.com/content/dam/asset-library/en_us/assets/public/sandisk/collateral/company/Sandisk-HBF-Fact-Sheet.pdf">High Bandwidth Flash fact sheet</a>; <a href="https://news.skhynix.com/en/hbf-at-fms-2026/">SK hynix at FMS 2026</a>.</li>
+  </ol>
+</section>
+</main>
+
+<footer class="mono"><a class="footer-brand" href="https://sec4.si/">SEC4.SI / SECURITY FOR SI</a><span class="research-labels">LLM / INFERENCE / AGENT</span><div class="footer-links"><a href="https://benchmark.sec4.si/">Benchmark ↗</a><a href="https://lens.sec4.si/">Lens ↗</a><span>© 2026 SEC4SI</span></div><a class="site-address" href="https://infer.sec4.si/">infer.sec4.si</a></footer>
+<script type="module" src="./article.js"></script></body></html>
