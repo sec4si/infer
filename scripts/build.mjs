@@ -1,0 +1,12 @@
+import { cp, mkdir, readFile, rm } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const output = path.join(root, 'dist');
+if (path.dirname(output) !== root || path.basename(output) !== 'dist') throw new Error('Unexpected output directory.');
+if ((await readFile(path.join(root, 'public', 'CNAME'), 'utf8')).trim() !== 'infer.sec4.si') throw new Error('Unexpected custom domain.');
+await readFile(path.join(root, 'public', 'index.html'), 'utf8');
+await rm(output, { recursive: true, force: true });
+await mkdir(output, { recursive: true });
+await cp(path.join(root, 'public'), output, { recursive: true });
+console.log('Built infer.sec4.si into dist/');
