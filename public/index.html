@@ -1,8 +1,294 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#090c09"><meta name="description" content="Infer, part of the sec4si AI security research ecosystem. Project content is coming soon."><meta property="og:title" content="Infer — sec4.si"><meta property="og:type" content="website"><meta property="og:url" content="https://infer.sec4.si/"><link rel="canonical" href="https://infer.sec4.si/"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/styles.css"><title>Infer — sec4.si</title></head>
-<body><a class="skip" href="#main">Skip to content</a><div class="page">
-<header><a class="brand" href="https://sec4.si/" aria-label="sec4.si home"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 5v22h7M28 5v22h-7"/><path class="slash" d="m19 6-6 20"/></svg><span>sec4<span class="dot">.</span>si</span></a><span class="project-breadcrumb mono">/ infer</span><nav aria-label="Project navigation"><a href="https://infer.sec4.si/" aria-current="page">Infer</a><a href="https://benchmark.sec4.si/">Benchmark</a><a href="https://lens.sec4.si/">Lens</a><a class="repo-link" href="https://github.com/sec4si/infer">GitHub <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 18 18 6M6 6h12v12"/></svg></a></nav></header>
-<main id="main" tabindex="-1"><div class="field-caption mono"><span class="status-dot"></span> SEC4SI / RESEARCH ECOSYSTEM / 03</div><div class="field" aria-hidden="true"><div class="field-lines" id="field-lines"></div><div class="scan"></div><span class="field-word one">INFER</span><span class="field-word two">LLM / INFERENCE / AGENT</span><span class="field-word three">INFERENCE</span><span class="field-word four">SECURITY FOR SI</span></div>
-<div class="hero-copy"><div class="eyebrow mono"><span class="cross" aria-hidden="true"></span> AI SECURITY RESEARCH / 03</div><h1><span><span>Infer </span></span><span><span class="accent">for SI.</span></span></h1><p class="description">A new space in the sec4si research ecosystem.<br>Project content is coming soon.</p><p class="chinese" lang="zh-CN">探索智能系统的安全边界。项目内容即将上线。</p><div class="actions"><a class="primary" href="https://github.com/sec4si/infer">Explore repository <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 18 18 6M6 6h12v12"/></svg></a><a class="secondary" href="https://sec4.si/">Visit sec4.si <span aria-hidden="true">↗</span></a></div></div>
-<aside class="note" aria-label="Project status"><div class="note-label mono"><span class="status-dot"></span> PROJECT IN PROGRESS <span style="margin-left:auto">[ INFER ]</span></div><h2>This space is taking shape.</h2><p>PART OF SEC4SI.<br>OPEN QUESTIONS. REAL SYSTEMS.</p></aside></main>
-<footer class="mono"><a class="footer-brand" href="https://sec4.si/">SEC4.SI / SECURITY FOR SI</a><span class="research-labels">LLM / INFERENCE / AGENT / ECOSYSTEM</span><div class="footer-links"><a href="https://benchmark.sec4.si/">Benchmark ↗</a><a href="https://lens.sec4.si/">Lens ↗</a><span>© 2026 SEC4SI</span></div><a class="site-address" href="https://infer.sec4.si/">infer.sec4.si</a></footer></div><script src="/site.js" defer></script></body></html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<script>let lang; try { lang = localStorage.getItem('lang') } catch {} if (lang ? lang === 'zh' : /^zh\b/i.test(navigator.language || '')) document.documentElement.lang = 'zh-CN'</script>
+<meta name="theme-color" content="#060a12"><meta name="description" content="Infer is the sec4si research site on model inference: what inference is, why it is where models create value, cost and risk, and how it goes wrong."><meta property="og:title" content="Infer — sec4.si"><meta property="og:type" content="website"><meta property="og:url" content="https://infer.sec4.si/"><link rel="canonical" href="https://infer.sec4.si/"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/styles.css"><title>Infer — sec4.si</title></head>
+<body><a class="skip" href="#main"><span lang="en">Skip to content</span><span lang="zh-CN">跳到正文</span></a>
+<header class="site-header"><a class="brand" href="https://sec4.si/" aria-label="sec4.si home"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 5v22h7M28 5v22h-7"/><path class="slash" d="m19 6-6 20"/></svg><span>sec4<span class="dot">.</span>si</span></a><span class="project-breadcrumb mono">/ infer</span><nav aria-label="Project navigation"><a href="https://benchmark.sec4.si/">Benchmark</a><a href="https://lens.sec4.si/">Lens</a><a href="https://infer.sec4.si/" aria-current="page">Infer</a><a href="/#research"><span lang="en">Research</span><span lang="zh-CN">研究</span></a><button class="lang-switch mono" type="button" aria-label="Switch language / 切换语言"><span class="en-mark">EN</span> / <span class="zh-mark">中</span></button><a class="repo-link" href="https://github.com/sec4si/infer">GitHub <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 18 18 6M6 6h12v12"/></svg></a></nav></header>
+
+<main id="main">
+<section class="prologue">
+  <div class="prologue-copy">
+    <div class="eyebrow mono"><span class="cross" aria-hidden="true"></span> INFER / INFERENCE RESEARCH</div>
+    <h1><span lang="en">Models act<br><span class="accent">only when they infer.</span></span><span lang="zh-CN">模型在推理时<br><span class="accent">才真正醒来。</span></span></h1>
+    <div class="lede-wrap">
+      <p class="lede"><span lang="en">A trained model is a file that sits still. Every answer it gives and every action it takes happens at inference. Infer studies that moment: how it works, why it matters, and where it goes wrong.</span><span lang="zh-CN">训练好的模型只是一个静止的文件。它的每一次回答、每一个动作，都发生在推理这一刻。Infer 研究的就是这一刻：它怎么发生，为什么重要，又会在哪里出错。</span></p>
+      <a class="research-link mono" href="#research"><span lang="en">Read our research</span><span lang="zh-CN">阅读我们的研究</span> →</a>
+    </div>
+  </div>
+  <figure class="specimen" id="specimen" tabindex="0">
+    <figcaption class="specimen-prompt mono"><span class="prompt-tag"><span lang="en">PROMPT</span><span lang="zh-CN">提问</span></span><span lang="en">Why is the sky blue?</span><span lang="zh-CN">天空为什么是蓝色的？</span></figcaption>
+    <p class="stream" aria-live="off"></p>
+    <div class="choice mono" aria-hidden="true"></div>
+    <div class="specimen-foot mono"><span lang="en">Each word was chosen from candidates. Hover or tap a word to see them. Schematic.</span><span lang="zh-CN">每个字都是从候选里选出来的。悬停或点按一个词，看看当时的候选。示意图。</span></div>
+  </figure>
+  <a class="scroll-cue mono" href="#what"><span lang="en">What is inference</span><span lang="zh-CN">什么是推理</span> ↓</a>
+</section>
+
+<section class="chapter" id="what" data-chapter="1" aria-labelledby="what-title">
+  <div class="chapter-head">
+    <span class="chapter-no mono">01</span>
+    <h2 id="what-title"><span lang="en">What is inference</span><span lang="zh-CN">什么是推理</span></h2>
+  </div>
+  <div class="scrolly">
+    <div class="steps">
+      <article class="step">
+        <span class="step-no mono">1.1</span>
+        <h3><span lang="en">Train once, infer forever.</span><span lang="zh-CN">训练一次，推理无数次。</span></h3>
+        <p><span lang="en">A model's life has two parts. Training grows it: months of computation that end in a single file of numbers, called parameters or weights. “8B” means 8 billion of them. Inference uses it: every time someone asks a question, the file is loaded and run. Training happens once. Inference happens every second, for as long as the model is in service.</span><span lang="zh-CN">一个模型的一生分两段。训练是“养大”它：几个月的计算，最后得到一个装满数字的文件。这些数字叫参数，也叫权重；“8B”就是 80 亿个参数。推理是“使用”它：每当有人提问，就把这个文件拿出来算一遍。训练只发生一次，推理则在模型上线后的每一秒都在发生。</span></p>
+        <p class="hint mono"><span lang="en">Words with a dotted underline explain themselves: hover or tap them.</span><span lang="zh-CN">带虚线的词，悬停或点按就能看到解释。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">1.2</span>
+        <h3><span lang="en">One word at a time.</span><span lang="zh-CN">一次只出一个字。</span></h3>
+        <p><span lang="en">A model does not write an answer in one go. It reads everything so far, scores every possible next word, picks one, appends it, and reads everything again. A long answer is thousands of these small loops. Strictly, each step produces a token: a word, part of a word, or a punctuation mark. We call them all words here.</span><span lang="zh-CN">模型不是一口气写出答案的。它读完已有的全部文字，给每一个可能的下一个字打分，挑出一个接在后面，然后从头再读一遍。一段长回答，就是几千次这样的小循环。严格地说，模型每次出的是一个 token：可能是一个字、半个词或一个标点。本站为了好读，统称“词”。</span></p>
+        <p class="hint mono"><span lang="en">Watch the loop, or step through it.</span><span lang="zh-CN">看它循环，或者一步步点。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">1.3</span>
+        <h3><span lang="en">Memory has a price.</span><span lang="zh-CN">记性是有代价的。</span></h3>
+        <p><span lang="en">Reading everything again would be wasteful, so the model keeps notes on what it has already read. They serve attention, the step where each new word looks back to find the parts of the text that matter most. These notes are called the <span class="term" tabindex="0" data-tip="K and V stand for key and value: two lists of numbers each word leaves behind for later words to look up.">KV cache</span>. They grow with every word, and they live in the same scarce <span class="term" tabindex="0" data-tip="Memory that belongs to the GPU and sits right next to the chip: much faster than ordinary memory, and much smaller.">GPU memory</span> as the model itself.</span><span lang="zh-CN">每次都从头读太浪费，所以模型会给读过的内容记笔记。笔记是给“注意力”用的：每写一个新词，模型都要回头看前文里哪些地方最相关。这份笔记叫 <span class="term" tabindex="0" data-tip="K 和 V 指注意力里的“键”（key）和“值”（value）：每个词留给后文查阅的两组数字。">KV cache</span>。它每多一个字就长一点，而且和模型本身挤在同一块昂贵的<span class="term" tabindex="0" data-tip="GPU 自己的内存，紧挨着芯片：比普通内存快得多，也小得多。">显存</span>里。</span></p>
+        <p class="hint mono"><span lang="en">Drag the slider to lengthen the conversation.</span><span lang="zh-CN">拖动滑块，把对话拉长。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">1.4</span>
+        <h3><span lang="en">From a file to a service.</span><span lang="zh-CN">从一个文件，到一项服务。</span></h3>
+        <p><span lang="en">Between the model file and the app you type into sits a whole stack: an inference engine that runs the math on <span class="term" tabindex="0" data-tip="Graphics processors. Built to draw images, they are good at doing the same calculation many times at once, which is exactly what models need.">GPUs</span>, a scheduler that packs many users' requests together, and an API that the outside world calls. Each layer is software, and each can be fast or slow, sound or broken.</span><span lang="zh-CN">从模型文件到你打字的那个应用，中间隔着一整套系统：在 <span class="term" tabindex="0" data-tip="图形处理器。原本用来画图，擅长同时做大量相同的计算，正好是大模型需要的。">GPU</span> 上做计算的推理引擎，把许多人的请求拼在一起算的调度器，以及给外界调用的 API。每一层都是软件，每一层都可能快或慢，可靠或出错。</span></p>
+        <p class="hint mono"><span lang="en">Hover a layer.</span><span lang="zh-CN">悬停查看每一层。</span></p>
+        <p class="takeaway"><span lang="en">That is inference: turning a file that sits still into a service that answers, one word at a time, for everyone at once.</span><span lang="zh-CN">这就是推理：把一个静止的文件，变成一项同时为所有人、一个字一个字作答的服务。</span></p>
+      </article>
+    </div>
+    <div class="stage">
+      <div class="stage-meta mono"><span class="stage-fig"></span><span lang="en">SCHEMATIC</span><span lang="zh-CN">示意</span></div>
+      <div class="stage-scenes"></div>
+    </div>
+  </div>
+  <p class="chapter-note mono"><span lang="en">All figures in this chapter are schematic. The KV cache sizes in figure 1.3 are computed from the published configuration of Llama 3 8B (32 layers, 8 key-value heads of dimension 128, 16-bit values), for a single conversation. “Words” here are tokens.</span><span lang="zh-CN">本章图示均为示意。图 1.3 的 KV cache 大小按 Llama 3 8B 公开的配置计算（32 层，8 个 KV 头，每头 128 维，16 位精度），只算一段对话。文中的“词”指 token。</span></p>
+</section>
+
+<section class="chapter" id="why" data-chapter="2" aria-labelledby="why-title">
+  <div class="chapter-head">
+    <span class="chapter-no mono">02</span>
+    <h2 id="why-title"><span lang="en">Why inference matters</span><span lang="zh-CN">为什么推理重要</span></h2>
+  </div>
+  <div class="scrolly">
+    <div class="steps">
+      <article class="step">
+        <span class="step-no mono">2.1</span>
+        <h3><span lang="en">Training is a bill. Inference is a meter.</span><span lang="zh-CN">训练是账单，推理是电表。</span></h3>
+        <p><span lang="en">Training is paid once, up front. Inference is paid every time the model is used, and the meter never stops. The more people rely on a model, the more its total cost shifts from building it to running it.</span><span lang="zh-CN">训练的钱一次付清。推理的钱每用一次付一次，电表一直在走。用的人越多，一个模型的总成本就越从“造出来”转向“用起来”。</span></p>
+        <p class="hint mono"><span lang="en">Switch between light and heavy use.</span><span lang="zh-CN">切换用量的多少。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">2.2</span>
+        <h3><span lang="en">Thinking longer, answering better.</span><span lang="zh-CN">想得越久，答得越好。</span></h3>
+        <p><span lang="en">Since 2024, reasoning models have shown a new lever: let the model write out its thinking before it answers, and accuracy rises with how long it thinks. How smart a model is no longer depends only on training. It also depends on how much it is allowed to compute at inference.</span><span lang="zh-CN">2024 年以来，推理模型带来了一根新的杠杆：让模型先把思考过程写出来再回答，想得越久，答对的概率越高。一个模型有多聪明，不再只由训练决定，也取决于推理时允许它算多少。</span></p>
+        <p class="hint mono"><span lang="en">Give it more time to think.</span><span lang="zh-CN">多给它一点思考时间。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">2.3</span>
+        <h3><span lang="en">Inference is where models touch the world.</span><span lang="zh-CN">推理时，模型碰到了世界。</span></h3>
+        <p><span lang="en">A model file cannot read your mail or run a command. At inference it can. <span class="term" tabindex="0" data-tip="Model-driven applications that can call tools and carry out several steps on their own.">Agents</span> turn each step of inference into an action: open a page, read a file, run code, send a message. Whatever the model reads at that moment can steer what it does next.</span><span lang="zh-CN">模型文件本身读不了你的邮件，也执行不了命令；推理时它可以。<span class="term" tabindex="0" data-tip="能自己调用工具、连续完成多步任务的模型应用。">Agent</span> 把每一步推理都变成一个动作：打开网页、读取文件、运行代码、发出消息。这一刻读进去的任何内容，都可能左右它下一步做什么。</span></p>
+        <p class="hint mono"><span lang="en">Switch from chat to agent.</span><span lang="zh-CN">从聊天切换到 Agent。</span></p>
+        <p class="takeaway"><span lang="en">A model's value, its cost and its risk are all realised at the same moment: inference. That is why we study it.</span><span lang="zh-CN">模型的价值、成本和风险，都在同一刻兑现：推理。这就是我们研究它的原因。</span></p>
+      </article>
+    </div>
+    <div class="stage">
+      <div class="stage-meta mono"><span class="stage-fig"></span><span lang="en">SCHEMATIC</span><span lang="zh-CN">示意</span></div>
+      <div class="stage-scenes"></div>
+    </div>
+  </div>
+  <p class="chapter-note mono"><span lang="en">All figures in this chapter are schematic; curves show the shape of the effect, not measurements of any model. Accuracy rising with inference-time compute was reported by OpenAI in <a href="https://openai.com/index/learning-to-reason-with-llms/">“Learning to reason with LLMs”</a> (2024).</span><span lang="zh-CN">本章图示均为示意，曲线只表示趋势，不是任何模型的实测数据。“准确率随推理计算量上升”见 OpenAI <a href="https://openai.com/index/learning-to-reason-with-llms/">《Learning to reason with LLMs》</a>（2024）。</span></p>
+</section>
+
+<section class="chapter" id="craft" data-chapter="3" aria-labelledby="craft-title">
+  <div class="chapter-head">
+    <span class="chapter-no mono">03</span>
+    <h2 id="craft-title"><span lang="en">What makes inference hard</span><span lang="zh-CN">把推理做好，难在哪</span></h2>
+  </div>
+  <div class="scrolly">
+    <div class="steps">
+      <article class="step">
+        <span class="step-no mono">3.1</span>
+        <h3><span lang="en">Speed: moving, not computing.</span><span lang="zh-CN">效率：慢在搬，不在算。</span></h3>
+        <p><span lang="en">To produce one word, the GPU has to read the entire model out of memory. The arithmetic is quick; the reading is slow. So one user's speed is capped by memory <span class="term" tabindex="0" data-tip="How much data can be read from memory each second. For an H100, 3.35 TB.">bandwidth</span> divided by model size. The fix is to share each read: serve a whole batch of users with it, or let a small model guess several words ahead and check them all in one pass. That second trick is called speculative decoding.</span><span lang="zh-CN">每生成一个字，GPU 都要把整个模型从显存里读一遍。计算本身很快，读才慢。所以一个人能得到的速度，上限大致是显存<span class="term" tabindex="0" data-tip="每秒能从显存里读出多少数据。H100 是每秒 3.35 TB。">带宽</span>除以模型大小。办法是让每次读取多干点活：一次读取同时服务一批人；或者让一个小模型先往后猜几个字，大模型读一遍就能一起检查。后一种叫投机解码。</span></p>
+        <p class="hint mono"><span lang="en">Switch between one user, a batch, and guessing ahead.</span><span lang="zh-CN">切换：一个人、一批人、先猜后验。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">3.2</span>
+        <h3><span lang="en">Storage: making it smaller.</span><span lang="zh-CN">存储：把模型压小。</span></h3>
+        <p><span lang="en">Each weight is usually stored in 16 bits. Store it in 8 or 4 instead, and the model shrinks by half or by three quarters. This is quantization. A smaller model fits on fewer cards and has less to move, so it also runs faster. The cost is a little precision in every number.</span><span lang="zh-CN">每个权重通常用 16 位来存。改用 8 位或 4 位，模型就缩小一半或四分之三。这叫量化。模型小了，用的卡就少，要搬的数据也少，于是也跑得更快。代价是每个数字都损失了一点精度。</span></p>
+        <p class="hint mono"><span lang="en">Change the number of bits.</span><span lang="zh-CN">换一种位数。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">3.3</span>
+        <h3><span lang="en">Accuracy: faster, but still right?</span><span lang="zh-CN">准确度：快了，还对吗？</span></h3>
+        <p><span lang="en">Every shortcut can change the answer. Fewer bits round the numbers differently. Even with nothing compressed and all randomness switched off (<span class="term" tabindex="0" data-tip="Temperature controls how freely a model samples. At 0 it always takes the most likely word.">temperature 0</span>), the same question can come back different: depending on how many other requests share the batch, the GPU adds numbers up in a different order, and tiny rounding differences grow into different words. Rewrite the kernels, the small programs that carry out each step on the GPU (more in chapter 4), so the order never changes, and the answers stop drifting.</span><span lang="zh-CN">每一种省事的办法都可能改变答案。位数少了，数字的取舍就不同。即使什么都不压缩、把随机性全部关掉（<span class="term" tabindex="0" data-tip="温度（temperature）决定模型选词时有多随意。设为 0，就是每一步只选概率最高的词。">温度设为 0</span>），同一个问题也可能得到不同的回答：同一批里一起算的请求数量不同，GPU 做加法的顺序就不同，微小的舍入误差最后会变成不同的字。把算子（GPU 上执行每一步计算的小程序，第四章细讲）改写成加法顺序固定不变，答案就不再漂移。</span></p>
+        <p class="hint mono"><span lang="en">Run the same question a thousand times.</span><span lang="zh-CN">把同一个问题跑一千次。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">3.4</span>
+        <h3><span lang="en">Architecture: not every part has to work.</span><span lang="zh-CN">架构：不必全员上场。</span></h3>
+        <p><span lang="en">Newer models are designed with inference in mind. A mixture-of-experts model splits itself into many experts and sends each word to only a few of them, so most of the model rests on every step. Others shrink the KV cache by changing how attention stores its notes. And serving systems split the work itself: reading the question and writing the answer run on separate machines.</span><span lang="zh-CN">新一代模型在设计时就考虑了推理。混合专家（MoE）模型把自己分成许多“专家”，每个字只交给其中几个处理，每一步大部分参数都在休息。有的模型改造了注意力记笔记的方式，把 KV cache 压得很小。服务系统则把活本身拆开：读题和写答案，放到不同的机器上做。</span></p>
+        <p class="hint mono"><span lang="en">Switch between the designs.</span><span lang="zh-CN">切换不同的设计。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">3.5</span>
+        <h3><span lang="en">Fit: same model, different chip.</span><span lang="zh-CN">适配：一块卡一个样。</span></h3>
+        <p><span lang="en">A model is not tied to one chip, but every chip needs its own software. Each engine supports some chips and not others, and the same model on the same engine can run very differently from one chip to the next. Making a model run well across all of them is work of its own.</span><span lang="zh-CN">模型本身不绑定某一块芯片，但每一种芯片都需要自己的软件。每个推理引擎只支持其中一部分芯片；同一个模型、同一个引擎，换一块芯片，表现可能天差地别。让一个模型在各种芯片上都跑得好，本身就是一门功夫。</span></p>
+        <p class="hint mono"><span lang="en">Hover a cell.</span><span lang="zh-CN">悬停查看每一格。</span></p>
+        <p class="takeaway"><span lang="en">Inference research is the search for the best balance of fast, small and right, on every chip it has to run on.</span><span lang="zh-CN">推理研究，就是在快、省、准之间找到最好的平衡，并让它在每一块要跑的芯片上都成立。</span></p>
+      </article>
+    </div>
+    <div class="stage">
+      <div class="stage-meta mono"><span class="stage-fig"></span><span lang="en">SCHEMATIC</span><span lang="zh-CN">示意</span></div>
+      <div class="stage-scenes"></div>
+    </div>
+  </div>
+  <p class="chapter-note mono"><span lang="en">Figures are schematic; the numbers are computed or taken from the sources. 3.1: H100 SXM bandwidth 3.35 TB/s from <a href="https://www.nvidia.com/en-us/data-center/h100/">NVIDIA</a>; speculative decoding speed-ups from <a href="https://arxiv.org/abs/2211.17192">Leviathan et al.</a> (2023) and <a href="https://arxiv.org/abs/2302.01318">Chen et al.</a> (2023). 3.2: sizes from the Llama 3 70B configuration; accuracy from Kurtic et al., <a href="https://arxiv.org/abs/2411.02355">“Give Me BF16 or Give Me Death?”</a> (2024). 3.3: Thinking Machines, <a href="https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/">“Defeating Nondeterminism in LLM Inference”</a> (2025), Qwen3-235B-A22B-Instruct-2507. 3.4: <a href="https://arxiv.org/abs/2412.19437">DeepSeek-V3</a> (2024); KV cache reduction in <a href="https://arxiv.org/abs/2405.04434">DeepSeek-V2</a> (2024); split prefill and decode in <a href="https://arxiv.org/abs/2401.09670">DistServe</a> (2024). 3.5: documentation of <a href="https://docs.vllm.ai/">vLLM</a>, <a href="https://github.com/vllm-project/vllm-ascend">vllm-ascend</a>, <a href="https://docs.sglang.io/">SGLang</a>, <a href="https://github.com/NVIDIA/TensorRT-LLM">TensorRT-LLM</a> and <a href="https://www.hiascend.com/">MindIE</a>.</span><span lang="zh-CN">图为示意，数字为计算所得或取自原始资料。3.1：H100 SXM 带宽 3.35 TB/s 见 <a href="https://www.nvidia.com/en-us/data-center/h100/">NVIDIA</a>；投机解码的加速倍数见 <a href="https://arxiv.org/abs/2211.17192">Leviathan 等</a>（2023）与 <a href="https://arxiv.org/abs/2302.01318">Chen 等</a>（2023）。3.2：模型大小按 Llama 3 70B 的配置计算；准确度见 Kurtic 等 <a href="https://arxiv.org/abs/2411.02355">《Give Me BF16 or Give Me Death?》</a>（2024）。3.3：Thinking Machines <a href="https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/">《Defeating Nondeterminism in LLM Inference》</a>（2025），模型为 Qwen3-235B-A22B-Instruct-2507。3.4：<a href="https://arxiv.org/abs/2412.19437">DeepSeek-V3</a>（2024）；KV cache 压缩见 <a href="https://arxiv.org/abs/2405.04434">DeepSeek-V2</a>（2024）；预填充与解码分离部署见 <a href="https://arxiv.org/abs/2401.09670">DistServe</a>（2024）。3.5：各项目文档：<a href="https://docs.vllm.ai/">vLLM</a>、<a href="https://github.com/vllm-project/vllm-ascend">vllm-ascend</a>、<a href="https://docs.sglang.io/">SGLang</a>、<a href="https://github.com/NVIDIA/TensorRT-LLM">TensorRT-LLM</a>、<a href="https://www.hiascend.com/">MindIE</a>。</span></p>
+</section>
+
+<section class="chapter" id="chip" data-chapter="4" aria-labelledby="chip-title">
+  <div class="chapter-head">
+    <span class="chapter-no mono">04</span>
+    <h2 id="chip-title"><span lang="en">From weights to silicon</span><span lang="zh-CN">从权重到芯片</span></h2>
+  </div>
+  <div class="scrolly">
+    <div class="steps">
+      <article class="step">
+        <span class="step-no mono">4.1</span>
+        <h3><span lang="en">Weights: a model is a pile of numbers.</span><span lang="zh-CN">权重：模型就是一堆数字。</span></h3>
+        <p><span lang="en">Download a model and you get files full of numbers, the weights. Llama 3 70B is about 141 GB of them, shipped as 30 files, too much for one card. So each big matrix is cut into slices and spread across several cards, which compute side by side and swap results after every layer. This is called tensor parallelism.</span><span lang="zh-CN">下载一个模型，拿到的就是装满数字的文件，这些数字叫权重。Llama 3 70B 大约有 141 GB，分成 30 个文件，一块卡装不下。于是每个大矩阵被切成几片，分给几块卡并排计算，每算完一层就互相交换结果。这叫张量并行。</span></p>
+        <p class="hint mono"><span lang="en">Change the number of cards.</span><span lang="zh-CN">换一下卡的数量。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">4.2</span>
+        <h3><span lang="en">Precision: how a number is stored.</span><span lang="zh-CN">精度：一个数怎么存。</span></h3>
+        <p><span lang="en">Each weight is a floating-point number made of three parts: a sign, an exponent that sets how big it is, and a mantissa that sets how exact it is. Fewer bits means choosing what to give up. BF16 and FP16 both use 16 bits, but BF16 keeps the range and gives up detail, while FP16 does the opposite.</span><span lang="zh-CN">每个权重都是一个浮点数，由三部分组成：符号；指数，决定它有多大；尾数，决定它有多精确。位数少了，就得决定牺牲哪一头。BF16 和 FP16 都是 16 位，但 BF16 保住了范围、牺牲了细节，FP16 正好反过来。</span></p>
+        <p class="hint mono"><span lang="en">Store π in each format.</span><span lang="zh-CN">把 π 存进每一种格式。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">4.3</span>
+        <h3><span lang="en">Kernels: where the speed is won.</span><span lang="zh-CN">算子：速度在这里定胜负。</span></h3>
+        <p><span lang="en">A kernel is a small program that runs on the GPU and carries out one step of the computation, such as one <span class="term" tabindex="0" data-tip="Multiplying two tables of numbers row by column. Nearly all of a model’s computation is this.">matrix multiplication</span>. It is launched across thousands of <span class="term" tabindex="0" data-tip="The smallest unit of work on a GPU. They run in huge numbers side by side.">threads</span> at once, each computing a small piece of the result. A model is a chain of kernels, and the engine’s job is to call them in the right order; how fast the model runs depends mostly on how well they are written.</span><span lang="zh-CN">算子（kernel）是在 GPU 上运行的一段小程序，负责完成一步计算，比如一次<span class="term" tabindex="0" data-tip="把两张数字表按行和列相乘。大模型里几乎所有的计算都是它。">矩阵乘</span>。它一启动就是成千上万个<span class="term" tabindex="0" data-tip="GPU 上最小的干活单位，成批地同时运行。">线程</span>同时干活，每个线程算结果里的一小块。一个模型就是一串算子，推理引擎负责按顺序调用它们；模型跑多快，主要看这些算子写得好不好。</span></p>
+        <p><span lang="en">Take attention: multiply matrices, scale, mask, <span class="term" tabindex="0" data-tip="Turns a list of scores into probabilities that add up to 1.">softmax</span>, multiply again. Run each as its own kernel and every one reads its input from memory and writes its output back. Fuse them into one kernel, as FlashAttention does, and the data makes the trip only once.</span><span lang="zh-CN">以注意力为例：矩阵乘、缩放、掩码、<span class="term" tabindex="0" data-tip="把一组分数换算成加起来等于 1 的概率。">softmax</span>、再一次矩阵乘。每一步单独作为一个算子跑，每个都要从显存读入、再写回显存。把它们融合成一个算子，就像 FlashAttention 那样，数据只需要来回一趟。</span></p>
+        <p class="hint mono"><span lang="en">Count the trips.</span><span lang="zh-CN">数一数来回了几趟。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">4.4</span>
+        <h3><span lang="en">Architecture: big and slow, small and fast.</span><span lang="zh-CN">架构：大的慢，快的小。</span></h3>
+        <p><span lang="en">An H100 chip is built from 132 <span class="term" tabindex="0" data-tip="Streaming multiprocessors: the GPU’s building blocks, each with its own Tensor Cores, registers and small fast memory.">SMs</span>, and its memory comes in layers. Main memory is large but far away; the caches on the chip are fast but tiny. Tensor Cores, the units built only for matrix multiplication, sit at the top and starve if data does not reach them in time. A good kernel keeps the data in the fast layers for as long as it can.</span><span lang="zh-CN">一块 H100 芯片由 132 个 <span class="term" tabindex="0" data-tip="流式多处理器（streaming multiprocessor）：GPU 的基本单元，每个都有自己的 Tensor Core、寄存器和一小块快速存储。">SM</span> 组成，存储分好几层：显存大，但离得远；芯片上的缓存快，但很小。最上面是 Tensor Core，专门做矩阵乘的计算单元，数据送不上来，它就只能干等。好的算子，就是让数据尽量待在快的那几层。</span></p>
+        <p class="hint mono"><span lang="en">Hover a layer.</span><span lang="zh-CN">悬停查看每一层。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">4.5</span>
+        <h3><span lang="en">NVIDIA: why it leads.</span><span lang="zh-CN">英伟达：为什么领先。</span></h3>
+        <p><span lang="en">Two reasons. CUDA, released in 2007, gave almost two decades of kernels, libraries and engineers a single home. And each new generation of its chips has added a smaller number format along with the hardware to compute in it. Other chips can match the silicon; to match the software they must rewrite the kernels, which brings us back to fit.</span><span lang="zh-CN">原因有两个。一是 CUDA：它 2007 年发布，近二十年来的算子、库和工程师都聚在这里。二是它每一代芯片都加进一种更小的数字格式，以及直接用它计算的硬件。别家芯片的硬件可以追上，软件要追上，就得把算子重写一遍，这又回到了适配的问题。</span></p>
+        <p class="hint mono"><span lang="en">Step through the generations.</span><span lang="zh-CN">按代际一步步看。</span></p>
+        <p class="takeaway"><span lang="en">Under every answer sits a stack of choices: how the weights are cut, how each number is stored, how the kernels are written, and what chip they run on.</span><span lang="zh-CN">每一个回答底下，都压着一摞选择：权重怎么切，数字怎么存，算子怎么写，跑在哪块芯片上。</span></p>
+      </article>
+    </div>
+    <div class="stage">
+      <div class="stage-meta mono"><span class="stage-fig"></span><span lang="en">SCHEMATIC</span><span lang="zh-CN">示意</span></div>
+      <div class="stage-scenes"></div>
+    </div>
+  </div>
+  <p class="chapter-note mono"><span lang="en">Figures are schematic; the numbers are from the sources. 4.1: size and file count from the Llama 3 70B <a href="https://huggingface.co/meta-llama/Meta-Llama-3-70B">model repository</a>. 4.2: FP8 from <a href="https://arxiv.org/abs/2209.05433">“FP8 Formats for Deep Learning”</a> (2022); FP4 from the <a href="https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf">OCP Microscaling spec</a> (2023) and <a href="https://developer.nvidia.com/blog/introducing-nvfp4-for-efficient-and-accurate-low-precision-inference/">NVIDIA on NVFP4</a> (2025); FP32 and FP16 are IEEE 754. 4.3: <a href="https://arxiv.org/abs/2205.14135">FlashAttention</a> (2022). 4.4: <a href="https://developer.nvidia.com/blog/nvidia-hopper-architecture-in-depth/">NVIDIA Hopper architecture in depth</a> (2022); bandwidth from the <a href="https://www.nvidia.com/en-us/data-center/h100/">H100 product page</a>. 4.5: NVIDIA architecture whitepapers for <a href="https://images.nvidia.com/content/volta-architecture/pdf/volta-architecture-whitepaper.pdf">Volta</a>, <a href="https://images.nvidia.com/aem-dam/en-zz/Solutions/design-visualization/technologies/turing-architecture/NVIDIA-Turing-Architecture-Whitepaper.pdf">Turing</a>, <a href="https://developer.nvidia.com/blog/nvidia-ampere-architecture-in-depth/">Ampere</a> and <a href="https://developer.nvidia.com/blog/nvidia-hopper-architecture-in-depth/">Hopper</a>; <a href="https://developer.nvidia.com/blog/nvidia-blackwell-platform-sets-new-llm-inference-records-in-mlperf-inference-v4-1/">Blackwell</a> (2024).</span><span lang="zh-CN">图为示意，数字取自原始资料。4.1：大小和文件数见 Llama 3 70B <a href="https://huggingface.co/meta-llama/Meta-Llama-3-70B">模型仓库</a>。4.2：FP8 见 <a href="https://arxiv.org/abs/2209.05433">《FP8 Formats for Deep Learning》</a>（2022）；FP4 见 <a href="https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf">OCP Microscaling 规范</a>（2023）与 <a href="https://developer.nvidia.com/blog/introducing-nvfp4-for-efficient-and-accurate-low-precision-inference/">NVIDIA 关于 NVFP4 的介绍</a>（2025）；FP32、FP16 为 IEEE 754 标准格式。4.3：<a href="https://arxiv.org/abs/2205.14135">FlashAttention</a>（2022）。4.4：<a href="https://developer.nvidia.com/blog/nvidia-hopper-architecture-in-depth/">NVIDIA Hopper 架构详解</a>（2022）；带宽见 <a href="https://www.nvidia.com/en-us/data-center/h100/">H100 产品页</a>。4.5：NVIDIA 各代架构白皮书：<a href="https://images.nvidia.com/content/volta-architecture/pdf/volta-architecture-whitepaper.pdf">Volta</a>、<a href="https://images.nvidia.com/aem-dam/en-zz/Solutions/design-visualization/technologies/turing-architecture/NVIDIA-Turing-Architecture-Whitepaper.pdf">Turing</a>、<a href="https://developer.nvidia.com/blog/nvidia-ampere-architecture-in-depth/">Ampere</a>、<a href="https://developer.nvidia.com/blog/nvidia-hopper-architecture-in-depth/">Hopper</a>；<a href="https://developer.nvidia.com/blog/nvidia-blackwell-platform-sets-new-llm-inference-records-in-mlperf-inference-v4-1/">Blackwell</a>（2024）。</span></p>
+</section>
+
+<section class="chapter" id="risk" data-chapter="5" aria-labelledby="risk-title">
+  <div class="chapter-head">
+    <span class="chapter-no mono">05</span>
+    <h2 id="risk-title"><span lang="en">Where inference goes wrong</span><span lang="zh-CN">推理时会出什么事</span></h2>
+  </div>
+  <div class="scrolly">
+    <div class="steps">
+      <article class="step">
+        <span class="step-no mono">5.1</span>
+        <h3><span lang="en">Doors left open.</span><span lang="zh-CN">门没锁。</span></h3>
+        <p><span lang="en">To answer questions, an inference service has to open a port. Ollama, a popular tool for running models yourself, has no login at all; it only stays safe because by default it listens to the local machine alone. Many people open it to the internet for convenience and never add a password. Over ten months, researchers counted more than 175,000 Ollama servers anyone could use, and nearly half of them could call tools.</span><span lang="zh-CN">推理服务要回答问题，就得开一个端口。Ollama 是很流行的自建模型工具，它本身没有登录功能，默认只对本机开放才算安全。很多人图方便，把它开到公网上，却没有另加密码。研究者用了近十个月，在公网上数到超过 17 万个谁都能用的 Ollama 服务，其中近一半还能调用工具。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">5.2</span>
+        <h3><span lang="en">Bugs get copied too.</span><span lang="zh-CN">漏洞也会被复制。</span></h3>
+        <p><span lang="en">Inference engines are young software that moves fast. Researchers found the same few unsafe lines in one engine after another: code that turns data received over the network straight back into Python objects, which lets whoever sends it run code on the server. Some engines had simply copied it; one file in SGLang says “Adapted from vLLM”. The hole travelled with the code. Each publicly known hole gets a <span class="term" tabindex="0" data-tip="Common Vulnerabilities and Exposures: the public catalogue of security holes, one ID per hole.">CVE</span> number, shown under each engine.</span><span lang="zh-CN">推理引擎是很年轻的软件，迭代很快。研究者在一个又一个引擎里发现了同样几行危险的代码：它把从网络上收到的数据直接还原成 Python 对象，等于让发送数据的人可以在服务器上运行代码。有的引擎是直接抄过去的，SGLang 的一个文件里就写着“Adapted from vLLM”。漏洞跟着代码一起走。图里每个引擎下面标着它的 <span class="term" tabindex="0" data-tip="公开漏洞编号（Common Vulnerabilities and Exposures），每个已知漏洞分到一个。">CVE</span> 编号。</span></p>
+        <p class="hint mono"><span lang="en">Watch the code spread.</span><span lang="zh-CN">看这段代码怎么传开。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">5.3</span>
+        <h3><span lang="en">Everything it reads is an instruction.</span><span lang="zh-CN">读到的字，也是命令。</span></h3>
+        <p><span lang="en">To a model, your request and the web pages, emails and files it reads are one stream of text. It cannot reliably tell orders from material. Hide a sentence where the model will read it, and you may rewrite what it does next. This is called <span class="term" tabindex="0" data-tip="A prompt is the text sent to a model. Injection smuggles instructions into text the model will read.">prompt injection</span>.</span><span lang="zh-CN">对模型来说，你的要求，和它读到的网页、邮件、文件，都是同一串文字。它分不清哪些是命令，哪些只是资料。把一句话藏在模型会读到的地方，就可能改写它接下来要做的事。这叫<span class="term" tabindex="0" data-tip="提示词（prompt）是发给模型的输入文字。注入，就是把指令偷偷塞进模型会读到的文字里。">提示词注入</span>（prompt injection）。</span></p>
+        <p class="hint mono"><span lang="en">Switch between what you see and what the model reads.</span><span lang="zh-CN">切换“你看到的”和“模型读到的”。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">5.4</span>
+        <h3><span lang="en">Guardrails leak.</span><span lang="zh-CN">护栏也会漏。</span></h3>
+        <p><span lang="en">The usual fix is a guardrail: a small model in front of the big one that flags malicious input. But it can be fooled as well. In a 2025 test, researchers lightly disguised attacks, for example by hiding characters inside emoji, and several widely used guardrails let most of them through.</span><span lang="zh-CN">常见的对策是加一道“护栏”：在大模型前面放一个专门识别恶意输入的小模型。可它自己也会被骗。2025 年的一项测试里，研究者把攻击文字稍加伪装，比如把字藏进表情符号里，好几款常用的护栏都放过了大部分攻击。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">5.5</span>
+        <h3><span lang="en">Someone else runs your meter.</span><span lang="zh-CN">电表被别人拿去用。</span></h3>
+        <p><span lang="en">Inference is billed by use. Leak an access key and strangers can call models on your account while you pay. Security researchers call it LLMjacking. At 2024 prices, they estimated a single hijacked account could burn more than $46,000 a day.</span><span lang="zh-CN">推理按用量计费。密钥一旦泄露，陌生人就能用你的账户调用模型，钱由你来付。安全研究者把这叫 LLMjacking。按 2024 年的价格估算，一个被盗用的账户，一天就能烧掉超过 4.6 万美元。</span></p>
+        <p class="hint mono"><span lang="en">Leak the key.</span><span lang="zh-CN">把密钥泄露出去。</span></p>
+        <p class="takeaway"><span lang="en">Every layer of the inference stack is a door: the port, the engine, the input, the guardrail, the bill. Each one has already been opened by someone.</span><span lang="zh-CN">推理系统的每一层都是一扇门：端口、引擎、输入、护栏、账单。每一扇，都已经有人推开过。</span></p>
+      </article>
+    </div>
+    <div class="stage">
+      <div class="stage-meta mono"><span class="stage-fig"></span><span lang="en">SCHEMATIC · REAL CASES</span><span lang="zh-CN">示意 · 真实案例</span></div>
+      <div class="stage-scenes"></div>
+    </div>
+  </div>
+  <p class="chapter-note mono"><span lang="en">Figures are schematic; the numbers are from the sources. 5.1: SentinelLABS and Censys, <a href="https://www.sentinelone.com/labs/silent-brothers-ollama-hosts-form-anonymous-ai-network-beyond-platform-guardrails/">“Silent Brothers”</a> (2026); CNCERT notice CNTA-2025-0003 (2025). 5.2: Oligo Security, <a href="https://www.oligo.security/blog/shadowmq-how-code-reuse-spread-critical-vulnerabilities-across-the-ai-ecosystem">“ShadowMQ”</a> (2025). 5.4: Hackett et al., <a href="https://arxiv.org/abs/2504.11168">“Bypassing Prompt Injection and Jailbreak Detection in LLM Guardrails”</a> (2025), average success of character-injection attacks. 5.5: Sysdig, <a href="https://sysdig.com/blog/llmjacking-stolen-cloud-credentials-used-in-new-ai-attack/">“LLMjacking”</a> (2024), estimated from Claude 2 prices and default quotas across four regions. The email in 5.3 is made up.</span><span lang="zh-CN">图为示意，数字来自原始资料。5.1：SentinelLABS 与 Censys <a href="https://www.sentinelone.com/labs/silent-brothers-ollama-hosts-form-anonymous-ai-network-beyond-platform-guardrails/">《Silent Brothers》</a>（2026）；CNCERT 安全公告 CNTA-2025-0003（2025）。5.2：Oligo Security <a href="https://www.oligo.security/blog/shadowmq-how-code-reuse-spread-critical-vulnerabilities-across-the-ai-ecosystem">《ShadowMQ》</a>（2025）。5.4：Hackett 等 <a href="https://arxiv.org/abs/2504.11168">《Bypassing Prompt Injection and Jailbreak Detection in LLM Guardrails》</a>（2025），取字符注入类攻击的平均成功率。5.5：Sysdig <a href="https://sysdig.com/blog/llmjacking-stolen-cloud-credentials-used-in-new-ai-attack/">《LLMjacking》</a>（2024），按 Claude 2 的价格和四个区域的默认配额估算。5.3 的邮件为虚构示例。</span></p>
+</section>
+
+<section class="chapter" id="state" data-chapter="6" aria-labelledby="state-title">
+  <div class="chapter-head">
+    <span class="chapter-no mono">06</span>
+    <h2 id="state-title"><span lang="en">Where the field stands</span><span lang="zh-CN">现状与局限</span></h2>
+  </div>
+  <div class="scrolly">
+    <div class="steps">
+      <article class="step">
+        <span class="step-no mono">6.1</span>
+        <h3><span lang="en">How far it has come.</span><span lang="zh-CN">已经走了多远。</span></h3>
+        <p><span lang="en">In a few years, inference has gone from getting a model to run at all to an engineering discipline of its own: kernels that respect the memory hierarchy, engines that manage the KV cache like an operating system manages memory, models designed to be cheap to run, and chips built around ever smaller numbers.</span><span lang="zh-CN">短短几年，推理从“能把模型跑起来”变成了一门独立的工程：算子学会了照顾存储层级，引擎像操作系统管理内存那样管理 KV cache，模型在设计时就为推理省钱，芯片则围绕越来越小的数字来造。</span></p>
+        <p class="hint mono"><span lang="en">Step through the milestones.</span><span lang="zh-CN">按时间一步步看。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">6.2</span>
+        <h3><span lang="en">A number means little without its settings.</span><span lang="zh-CN">数字离不开设置。</span></h3>
+        <p><span lang="en">Engines and chip makers each report how many words per second they deliver. But that number swings widely with how many users share a batch, how long the inputs and outputs are, and which precision is used. Two numbers measured under different settings cannot be compared, yet they often are.</span><span lang="zh-CN">引擎和芯片厂商都会报出“每秒多少词”。可这个数字会随着一批有多少人、输入输出有多长、用什么精度而大幅变化。设置不同的两个数字本来没法比，却常常被放在一起比。</span></p>
+        <p class="hint mono"><span lang="en">Change the test settings.</span><span lang="zh-CN">换一种测试设置。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">6.3</span>
+        <h3><span lang="en">Fast and right are measured apart.</span><span lang="zh-CN">快和准，常常分开量。</span></h3>
+        <p><span lang="en">Speed benchmarks rarely check whether the answers are still right, and accuracy benchmarks rarely record how the model was served. Yet every speed-up from chapter 3 can cost some accuracy. The trade-off only shows when both are measured on the same runs.</span><span lang="zh-CN">测速度的评测，很少检查答案还对不对；测准确度的评测，也很少记录模型是怎么部署的。可第三章里的每一种加速，都可能牺牲一点准确度。只有在同一批运行上把两者一起量，取舍才看得出来。</span></p>
+        <p class="hint mono"><span lang="en">Look at one axis, then both.</span><span lang="zh-CN">先只看一个轴，再两个一起看。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">6.4</span>
+        <h3><span lang="en">Few comparable numbers across chips.</span><span lang="zh-CN">芯片之间，缺少对比。</span></h3>
+        <p><span lang="en">Whether a model runs on a chip is documented. How well it runs is mostly reported by each vendor, on settings it chose. We found few public, reproducible comparisons of the same models across NVIDIA, AMD and domestic chips, the very choice many teams now face.</span><span lang="zh-CN">一个模型能不能在某块芯片上跑，文档里查得到；跑得怎么样，大多是厂商各自报的，用的是各自挑的设置。同一批模型在英伟达、AMD 和国产芯片上的对比，我们没找到多少公开、能复现的数据，而这恰恰是很多团队正在面对的选择。</span></p>
+        <p class="takeaway"><span lang="en">That is what Infer sets out to do: measure fast, small and right together, on real chips, with one ruler, and publish the method along with the data.</span><span lang="zh-CN">这就是 Infer 要做的：在真实的芯片上，用同一把尺子，把快、省、准一起量出来，并把方法和数据一起公开。</span></p>
+      </article>
+    </div>
+    <div class="stage">
+      <div class="stage-meta mono"><span class="stage-fig"></span><span lang="en">SCHEMATIC</span><span lang="zh-CN">示意</span></div>
+      <div class="stage-scenes"></div>
+    </div>
+  </div>
+  <p class="chapter-note mono"><span lang="en">Figures 6.2 and 6.3 are schematic. Timeline sources: <a href="https://arxiv.org/abs/2205.14135">FlashAttention</a>, <a href="https://arxiv.org/abs/2211.17192">speculative decoding</a>, <a href="https://arxiv.org/abs/2309.06180">vLLM</a>, <a href="https://arxiv.org/abs/2312.07104">SGLang</a>, <a href="https://arxiv.org/abs/2401.09670">DistServe</a>, <a href="https://arxiv.org/abs/2405.04434">DeepSeek-V2</a>, <a href="https://openai.com/index/learning-to-reason-with-llms/">OpenAI o1</a>, <a href="https://developer.nvidia.com/blog/introducing-nvfp4-for-efficient-and-accurate-low-precision-inference/">NVFP4</a>, <a href="https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/">batch-invariant kernels</a>. Speed-ups are each paper’s own headline figures.</span><span lang="zh-CN">图 6.2、6.3 为示意。时间线出处：<a href="https://arxiv.org/abs/2205.14135">FlashAttention</a>、<a href="https://arxiv.org/abs/2211.17192">投机解码</a>、<a href="https://arxiv.org/abs/2309.06180">vLLM</a>、<a href="https://arxiv.org/abs/2312.07104">SGLang</a>、<a href="https://arxiv.org/abs/2401.09670">DistServe</a>、<a href="https://arxiv.org/abs/2405.04434">DeepSeek-V2</a>、<a href="https://openai.com/index/learning-to-reason-with-llms/">OpenAI o1</a>、<a href="https://developer.nvidia.com/blog/introducing-nvfp4-for-efficient-and-accurate-low-precision-inference/">NVFP4</a>、<a href="https://thinkingmachines.ai/blog/defeating-nondeterminism-in-llm-inference/">批次不变的算子</a>。加速倍数均为各论文自己报告的数字。</span></p>
+</section>
+
+<section class="chapter research" id="research" aria-labelledby="research-title">
+  <div class="chapter-head">
+    <span class="chapter-no mono">07</span>
+    <h2 id="research-title"><span lang="en">Our research</span><span lang="zh-CN">我们的研究</span></h2>
+  </div>
+  <p class="research-intro"><span lang="en">Each article takes one question about inference and answers it with interactive figures you can explore, built on experiments run on real chips.</span><span lang="zh-CN">每篇文章回答一个关于推理的问题，用可以亲手探索的交互图来讲解，背后都是在真实芯片上跑出来的实验。</span></p>
+  <ol class="article-list"></ol>
+</section>
+</main>
+
+<footer class="mono"><a class="footer-brand" href="https://sec4.si/">SEC4.SI / SECURITY FOR SI</a><span class="research-labels">LLM / INFERENCE / AGENT</span><div class="footer-links"><a href="https://benchmark.sec4.si/">Benchmark ↗</a><a href="https://lens.sec4.si/">Lens ↗</a><span>© 2026 SEC4SI</span></div><a class="site-address" href="https://infer.sec4.si/">infer.sec4.si</a></footer>
+<script type="module" src="/js/main.js"></script></body></html>
