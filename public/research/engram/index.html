@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<script>let lang; try { lang = localStorage.getItem('lang') } catch {} if (lang ? lang === 'zh' : /^zh\b/i.test(navigator.language || '')) document.documentElement.lang = 'zh-CN'</script>
+<meta name="theme-color" content="#060a12"><meta name="description" content="We bolted Engram-style n-gram lookup tables onto a frozen Qwen3-0.6B. Hashed tables drifted and ended worse than no table; a dictionary of common phrases helped a little without losing anything, and added no knowledge we could measure."><link rel="canonical" href="https://infer.sec4.si/research/engram/"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/styles.css"><title>Bolting a memory table onto a trained model — Infer</title></head>
+<body><a class="skip" href="#main"><span lang="en">Skip to content</span><span lang="zh-CN">跳到正文</span></a>
+<header class="site-header"><a class="brand" href="https://sec4.si/" aria-label="sec4.si home"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 5v22h7M28 5v22h-7"/><path class="slash" d="m19 6-6 20"/></svg><span>sec4<span class="dot">.</span>si</span></a><span class="project-breadcrumb mono">/ infer</span><nav aria-label="Project navigation"><a href="https://benchmark.sec4.si/">Benchmark</a><a href="https://lens.sec4.si/">Lens</a><a href="https://infer.sec4.si/">Infer</a><a href="/#research" aria-current="page"><span lang="en">Research</span><span lang="zh-CN">研究</span></a><button class="lang-switch mono" type="button" aria-label="Switch language / 切换语言"><span class="en-mark">EN</span> / <span class="zh-mark">中</span></button><a class="repo-link" href="https://github.com/sec4si/infer">GitHub <svg class="arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 18 18 6M6 6h12v12"/></svg></a></nav></header>
+
+<main id="main" class="article">
+<header class="article-head">
+  <a class="back mono" href="/#research">← <span lang="en">Research</span><span lang="zh-CN">研究</span></a>
+  <div class="eyebrow mono"><span class="cross" aria-hidden="true"></span> RESEARCH / 2026-11-06</div>
+  <h1><span lang="en">Can you bolt a memory table onto a model that was trained without one?</span><span lang="zh-CN">给训练好的模型后装一张记忆表，行得通吗？</span></h1>
+  <p class="dek"><span lang="en">DeepSeek’s Engram trains huge lookup tables together with the model. We tried adding one to a model that is already trained and frozen. Hashed tables drifted and ended worse than no table at all. A small codebook of common phrases helped a little, with no loss we could detect. Neither added knowledge we could detect. Then we removed some of the model’s own layers. A trained codebook stood in for part of them, less well than LoRA; but a table simply counted from the model’s own activations, with LoRA on top, beat everything else we tried.</span><span lang="zh-CN">DeepSeek 的 Engram，是把巨大的查找表和模型放在一起训练出来的。我们试着给一个已经训练好、参数冻结的模型后装一张表。用哈希的表越训越偏，最后比不装表还差；只收常用短语的一张小码表，带来一点提升，也没有测出能力上的损失。两种做法，都没有测出新增的知识。我们又拿掉模型自己的几层：训练出来的码表能顶上一部分，但不如 LoRA；而直接从模型自身激活统计出来的表，再加上 LoRA，比我们试过的其他做法都好。</span></p>
+  <p class="byline mono">sec4si · ZacharyZcR · <a href="https://github.com/sec4si/engram-retrofit"><span lang="en">code &amp; data ↗</span><span lang="zh-CN">代码与数据 ↗</span></a></p>
+</header>
+
+<div class="prose">
+  <p><span lang="en">Our <a href="/research/hetero/">previous article</a> ended with a question. Engram gives a model a second kind of memory: for each word, it looks up a few rows in huge tables, indexed by the short run of words just before it (an n-gram), and mixes them into what the model is computing. In DeepSeek V4.1 Flash those tables are 40% of the model, and they were trained together with everything else.<sup><a href="#ref-1">1</a></sup><sup><a href="#ref-2">2</a></sup> Could a table instead be plugged into a model that already exists, and is frozen?</span><span lang="zh-CN"><a href="/research/hetero/">上一篇文章</a>结尾留了一个问题。Engram 给模型添了第二种记忆：每处理一个词，就以它前面相邻的几个词（n-gram）为索引，到几张巨大的表里查出几行，混进模型正在算的东西里。在 DeepSeek V4.1 Flash 里，这些表占了整个模型的 40%，而且是和其他部分一起训练出来的。<sup><a href="#ref-1">1</a></sup><sup><a href="#ref-2">2</a></sup>那么，能不能反过来，把一张表挂到一个已经训练好、参数冻结的模型上？</span></p>
+  <p><span lang="en">If it could, any open model could gain a memory that lives on disk, as the previous article described, without retraining the model itself. There are reasons for doubt. The Engram paper’s gains came from training table and model together, letting the model’s early layers stop rebuilding what the table already holds. And the closest attempt we know of, TF-Engram, built a table for a frozen Qwen3-0.6B without training it at all, and reported an average score rising from 57.6 to 59.4.<sup><a href="#ref-3">3</a></sup></span><span lang="zh-CN">如果行得通，任何开源模型都能添上一块放在硬盘上的记忆，就像上一篇讲的那样，而模型本身不用重新训练。但也有理由怀疑：Engram 论文里的收益，来自表和模型一起训练，模型的浅层因此不必再重新拼出表里已有的东西。我们知道的最接近的尝试是 TF-Engram，它给冻结的 Qwen3-0.6B 建了一张表，完全不训练，报告的平均分从 57.6 提到了 59.4。<sup><a href="#ref-3">3</a></sup></span></p>
+  <p><span lang="en">We took Qwen3-0.6B-Base, froze it, and inserted tables before two of its 28 layers, the second and the tenth. Only the tables and a few small projections around them were trained, on 330 million words of FineWeb-Edu. For comparison we trained LoRA, the usual cheap way to adapt a frozen model, on exactly the same data. We measured three things: perplexity on held-out FineWeb-Edu, the same kind of text it trained on; perplexity on WikiText-103, a different kind; and closed-book TriviaQA, which asks for facts. For perplexity, lower is better.</span><span lang="zh-CN">我们用的是 Qwen3-0.6B-Base，把它冻结，在它 28 层中的第 2 层和第 10 层之前各插一张表。只训练表和它周围几个很小的投影，用的是 FineWeb-Edu 里的 3.3 亿个词。作为对照，我们用完全相同的数据训练了 LoRA，这是给冻结模型做适配最常用的低成本办法。测三样东西：在留出的 FineWeb-Edu 上的困惑度，和训练文本同一类；在 WikiText-103 上的困惑度，换了一类文本；以及闭卷的 TriviaQA，考的是事实知识。困惑度越低越好。</span></p>
+</div>
+<aside class="prose callout">
+  <h3><span lang="en">Four questions, four answers</span><span lang="zh-CN">四个问题，四个答案</span></h3>
+  <ol>
+    <li><span lang="en"><b>Does a bolted-on table learn anything?</b> At first. With hashed rows the gain did not last: the bigger the table, the worse it did on new text as training went on, and the biggest ended worse than no table at all.</span><span lang="zh-CN"><b>后装的表能学到东西吗？</b>一开始能。但用哈希分配行的表留不住这点收益：训练越往后，表越大，在新文本上就越差，最大的那张表最后比不装表还差。</span></li>
+    <li><span lang="en"><b>Can it be kept from going wrong?</b> Giving rows only to common phrases, and treating everything else as a miss, kept it steady through training. It lowered held-out perplexity by 2.4% and did not lower TriviaQA. LoRA did better on similar text, but its TriviaQA fell by 1.9 points.</span><span lang="zh-CN"><b>能让它不出问题吗？</b>只给常用短语分配行，其余一律当作没查到，它在整个训练过程中都很平稳。留出集困惑度降了 2.4%，TriviaQA 没有下降。LoRA 在同类文本上降得更多，但它的 TriviaQA 掉了 1.9 个百分点。</span></li>
+    <li><span lang="en"><b>Did it add knowledge?</b> We found no sign of it. On other text and on facts, the real rows did no better than random ones.</span><span lang="zh-CN"><b>它加进知识了吗？</b>没有测出来。在别的文本上、在事实问答上，真实查到的行都不比随机的行强。</span></li>
+    <li><span lang="en"><b>Can the table take over the model’s own work?</b> Not with our training recipe: with early feed-forward layers removed, LoRA repaired the damage better than a trained codebook. But a table counted from the model’s own activations, with no training, stood in for most of those layers, and with LoRA on top it beat LoRA alone on all three measures.</span><span lang="zh-CN"><b>表能接管模型自己的工作吗？</b>按我们的训练配方不行：拿掉几个浅层的前馈层后，LoRA 修得比训练出来的码表好。但从模型自身激活统计出来的表，不经训练就顶住了这几层的大部分工作；再加上 LoRA，三项指标都胜过单独的 LoRA。</span></li>
+  </ol>
+</aside>
+
+<div class="prose"><h2><span lang="en">1. Hashed tables: learning, then unlearning</span><span lang="zh-CN">一、哈希表：学到了，又学偏了</span></h2>
+  <p><span lang="en">We first copied V4.1 Flash’s design from its released inference code: two- and three-word n-grams, four hash heads for each, every head hashing into its own bucket of rows. Every row starts as zeros, so before training the model behaves exactly as it did without a table, and a row that is never trained adds nothing.</span><span lang="zh-CN">我们先照着 V4.1 Flash 公开的推理代码复刻它的设计：取两个词和三个词的 n-gram，每种各有四个哈希头，每个头哈希到自己的那一段行里。所有行的初始值都是 0，所以训练之前，模型的表现和没装表时一模一样；一行要是从没被训练到，也就什么都不会加进去。</span></p>
+</div>
+
+<section class="scrolly-block" data-chapter="1">
+  <div class="scrolly">
+    <div class="steps">
+      <article class="step">
+        <span class="step-no mono">1.1</span>
+        <h3><span lang="en">Better first, then worse.</span><span lang="zh-CN">先变好，再变差。</span></h3>
+        <p><span lang="en">With a million rows per head, about two billion trainable numbers, and the paper’s five-fold learning rate on its rows, held-out perplexity fell from 15.75 to 15.51 by step 1,000. Then it rose at every check, to 16.50 at the end. A table five times smaller, trained at the ordinary learning rate, rose more slowly but in the same direction. LoRA stayed near 15.1 throughout.</span><span lang="zh-CN">每个头一百万行，可训练的参数约二十亿个，表的学习率按论文的做法调高五倍。到第 1000 步，留出集困惑度从 15.75 降到了 15.51；之后每一次检查都在上升，训练结束时是 16.50。小五倍的表用普通的学习率，升得慢一些，但方向一样。LoRA 从头到尾都稳在 15.1 左右。</span></p>
+        <p class="hint mono"><span lang="en">Add the runs one by one.</span><span lang="zh-CN">把各组的曲线一条条加上。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">1.2</span>
+        <h3><span lang="en">Worse on every test.</span><span lang="zh-CN">每一项都变差了。</span></h3>
+        <p><span lang="en">After training, the big table was worse than the plain model on all three measures: held-out perplexity 16.73 against 16.04, WikiText 15.45 against 14.11, TriviaQA 19.30% against 21.25%. The smaller table only got back to where it started on held-out text, and was still worse on WikiText.</span><span lang="zh-CN">训练结束后，大表在三项上都不如原模型：留出集困惑度 16.73 对 16.04，WikiText 15.45 对 14.11，TriviaQA 19.30% 对 21.25%。小表在留出集上只是回到了原点，在 WikiText 上仍然更差。</span></p>
+        <p class="hint mono"><span lang="en">Switch between the three measures.</span><span lang="zh-CN">切换三项指标。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">1.3</span>
+        <h3><span lang="en">Worse than random rows.</span><span lang="zh-CN">比随机的行还差。</span></h3>
+        <p><span lang="en">To see what the rows themselves contribute, we replaced every row the model looked up with a random other row of the same trained table. On held-out text the real rows still helped a little, 16.73 against 16.92. On WikiText they did the opposite: 15.45 with the real rows, 14.97 with random ones. On new text, what the big table had learned was worse than noise.</span><span lang="zh-CN">为了看清这些行本身起了什么作用，我们把模型查到的每一行，都换成同一张训练好的表里随机的另一行。在留出集上，真实的行仍然有一点帮助，16.73 对 16.92。在 WikiText 上则正好相反：用真实的行是 15.45，用随机的行是 14.97。换到新文本上，大表学到的东西比噪声还糟。</span></p>
+        <p class="hint mono"><span lang="en">Real rows against random rows.</span><span lang="zh-CN">真实的行与随机的行。</span></p>
+        <p class="takeaway"><span lang="en">Our reading, which we have not proven: in 330 million words, most n-grams turn up only once or twice, so their rows record the details of one document. The gate could in principle learn to ignore such rows; we have not measured whether it does.</span><span lang="zh-CN">我们的解释（尚未证实）：在 3.3 亿个词里，大多数 n-gram 只出现一两次，它们那一行记下的就是某一篇文档的细节。门控原则上可以学会忽略这样的行，但它实际有没有做到，我们还没有测。</span></p>
+      </article>
+    </div>
+    <div class="stage">
+      <div class="stage-meta mono"><span class="stage-fig"></span><span lang="en">DATA: OUR RUNS · QWEN3-0.6B-BASE</span><span lang="zh-CN">数据：本文实验 · QWEN3-0.6B-BASE</span></div>
+      <div class="stage-scenes"></div>
+    </div>
+  </div>
+</section>
+
+<div class="prose"><h2><span lang="en">2. Keep only the common ones: a codebook</span><span lang="zh-CN">二、只收常用的：一张码表</span></h2>
+  <p><span lang="en">If rare n-grams are the problem, do not give them rows. We counted every two- and three-word n-gram in the first 100 million training words and gave a row only to those seen at least 50 times. Each of them gets its own row, found by exact match, so nothing collides. Everything else is a miss: it looks nothing up and adds nothing, and the model is left as it was.</span><span lang="zh-CN">既然问题出在罕见的 n-gram 上，那就不给它们分配行。我们统计了训练数据前 1 亿个词里所有两词和三词的 n-gram，只给出现至少 50 次的分配行。每一个都独占一行，按原样精确查找，不会和别的撞在一起。其余的一律算作没查到：不查表，不加任何东西，模型保持原样。</span></p>
+</div>
+
+<section class="scrolly-block" data-chapter="2">
+  <div class="scrolly">
+    <div class="steps">
+      <article class="step">
+        <span class="step-no mono">2.1</span>
+        <h3><span lang="en">A few hundred thousand phrases cover most of the text.</span><span lang="zh-CN">几十万条短语，就覆盖了大部分文本。</span></h3>
+        <p><span lang="en">Word use is lopsided. The 227,808 two-word n-grams seen at least 50 times account for 71.6% of all positions in the text; the 139,547 such three-word ones, for 26.5%. By these counts, most of these rows should be looked up dozens of times or more during training, rather than once or twice.</span><span lang="zh-CN">用词是极不均匀的。出现至少 50 次的两词 n-gram 有 227,808 条，占了文本里 71.6% 的位置；这样的三词 n-gram 有 139,547 条，占 26.5%。按这个统计，这些行在训练中大多会被查到几十次以上，而不是一两次。</span></p>
+        <p class="hint mono"><span lang="en">Two-word and three-word n-grams.</span><span lang="zh-CN">两词和三词的 n-gram。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">2.2</span>
+        <h3><span lang="en">Steady, not drifting.</span><span lang="zh-CN">平稳，不再漂移。</span></h3>
+        <p><span lang="en">With 190 million trainable numbers, under half as many as the smaller hashed table, the codebook’s held-out perplexity was 15.35 at step 1,000 and 15.36 at step 10,000, with no sign of getting worse. A looser codebook, cut at 20 sightings, rose slightly to 15.42, and trained with five times the learning rate on its rows, as the Engram paper does, it rose further, to 15.58.</span><span lang="zh-CN">码表的可训练参数是 1.9 亿个，不到小哈希表的一半。它的留出集困惑度在第 1000 步是 15.35，第 10000 步是 15.36，没有变差的迹象。门槛放宽到 20 次的码表略有回升，到 15.42；再按 Engram 论文的做法把它的表学习率调高五倍，回升得更多，最后是 15.58。</span></p>
+        <p class="hint mono"><span lang="en">Compare with the hashed table and LoRA.</span><span lang="zh-CN">和哈希表、LoRA 对比。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">2.3</span>
+        <h3><span lang="en">A small gain, nothing measurable lost.</span><span lang="zh-CN">一点提升，没有可测的损失。</span></h3>
+        <p><span lang="en">At the end, the codebook lowered held-out perplexity from 16.04 to 15.65, a 2.4% drop. WikiText moved from 14.11 to 14.20, and TriviaQA from 21.25% to 21.50%, which is within the noise of 2,000 questions. LoRA, with only five million trainable numbers, did better on held-out text, 15.35, but its TriviaQA fell to 19.35%, a drop of 1.9 points, about two standard errors; we did not run a paired test.</span><span lang="zh-CN">训练结束时，码表把留出集困惑度从 16.04 降到了 15.65，降了 2.4%。WikiText 从 14.11 变成 14.20，TriviaQA 从 21.25% 变成 21.50%，这点差距在 2000 道题的噪声范围之内。LoRA 只有 500 万个可训练参数，在留出集上降得更多，到 15.35，但 TriviaQA 掉到了 19.35%，降了 1.9 个百分点，约为两个标准误；我们没有做配对检验。</span></p>
+        <p class="hint mono"><span lang="en">Switch between the three measures.</span><span lang="zh-CN">切换三项指标。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">2.4</span>
+        <h3><span lang="en">No sign of new knowledge.</span><span lang="zh-CN">没有新知识的迹象。</span></h3>
+        <p><span lang="en">Replace the codebook’s rows with random ones and its held-out gain disappears: 16.11 instead of 15.65. So the gain does come from what the rows hold. But on WikiText the real and random rows are level, 14.20 and 14.19, and on TriviaQA the gap, 21.50% against 20.85%, is within the noise. Outside text like its training data, the codebook adds nothing we can measure.</span><span lang="zh-CN">把码表查到的行换成随机的，留出集上的收益就没了：16.11，而不是 15.65。可见收益确实来自这些行里存的东西。但在 WikiText 上，真实的行和随机的行打成平手，14.20 对 14.19；在 TriviaQA 上，21.50% 对 20.85% 的差距也在噪声范围内。离开和训练数据同类的文本，码表就没有可测的作用了。</span></p>
+        <p class="hint mono"><span lang="en">Real rows against random rows.</span><span lang="zh-CN">真实的行与随机的行。</span></p>
+        <p class="takeaway"><span lang="en">In our setup, a codebook of common phrases was the steadier way to bolt a table onto a frozen model: it picked up the local habits of the text it trained on, and we detected no change on facts. At this scale, it did not add facts we could measure.</span><span lang="zh-CN">在我们的设置里，只收常用短语的码表是给冻结模型后装表时更稳的做法：它学会了训练文本里局部的用词习惯，在事实问答上没有测出变化。但在这个规模上，它没有加进可测的知识。</span></p>
+      </article>
+    </div>
+    <div class="stage">
+      <div class="stage-meta mono"><span class="stage-fig"></span><span lang="en">DATA: OUR RUNS · QWEN3-0.6B-BASE</span><span lang="zh-CN">数据：本文实验 · QWEN3-0.6B-BASE</span></div>
+      <div class="stage-scenes"></div>
+    </div>
+  </div>
+</section>
+
+<div class="prose"><h2><span lang="en">3. Can the table take over the model’s work?</span><span lang="zh-CN">三、表能接管模型的工作吗</span></h2>
+  <p><span lang="en">The Engram paper’s analysis suggests its tables relieve the early layers of rebuilding static patterns, and that this is where its gains come from. A frozen model never gets to hand that work over, so we forced the question. We removed some early feed-forward layers, the larger part of each block, and asked whether a codebook could do their job. The first table moved to just before the removed layers, before block 4; the second stayed before block 10. We trained the codebook, or LoRA for comparison, for 5,000 steps on the same data.</span><span lang="zh-CN">Engram 论文的分析认为，它的表让浅层不必再重新拼出那些固定的模式，收益正是从这里来的。冻结的模型根本没有机会把这份工作交出去，所以我们换个方式逼问：拿掉几个浅层的前馈层（它是每一块里更大的那一部分），看码表能不能顶上它们的工作。第一张表挪到被拿掉的那几层前面，也就是第 4 块之前；第二张表仍在第 10 块之前。然后在同样的数据上，训练码表，或者作为对照训练 LoRA，各 5000 步。</span></p>
+</div>
+
+<section class="scrolly-block" data-chapter="3">
+  <div class="scrolly">
+    <div class="steps">
+      <article class="step">
+        <span class="step-no mono">3.1</span>
+        <h3><span lang="en">Not every layer can go.</span><span lang="zh-CN">不是每一层都能拿掉。</span></h3>
+        <p><span lang="en">We removed one block’s feed-forward layer at a time and measured 64 held-out sequences, on which the intact model scores 13.03. Removing the second block’s sends perplexity to 7,257, and the third’s to 164: the model is broken. The fourth and fifth cost about 28%. The cost falls to about 9% in the middle and climbs again toward the end: 34% for the second-to-last block, 79% for the last. We chose two levels of damage: blocks 4 to 7 removed, which takes perplexity from 15.75 to 85.7 on 256 sequences, and blocks 4 and 5, which takes it to 36.8.</span><span lang="zh-CN">我们每次只拿掉一块的前馈层，在 64 条留出序列上测，完整的模型在这上面是 13.03。拿掉第 2 块的，困惑度升到 7,257；拿掉第 3 块的，升到 164：模型直接崩溃。第 4、5 块的代价约 28%；往中间降到 9% 左右，到末尾又升上去：倒数第二块 34%，最后一块 79%。我们选了两档损伤：拿掉第 4 到第 7 块，在 256 条序列上困惑度从 15.75 升到 85.7；拿掉第 4、5 块，升到 36.8。</span></p>
+        <p class="hint mono"><span lang="en">Switch to the zoomed view.</span><span lang="zh-CN">切换到放大视图。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">3.2</span>
+        <h3><span lang="en">Both repair; LoRA repairs more.</span><span lang="zh-CN">都能修复，LoRA 修得更多。</span></h3>
+        <p><span lang="en">With blocks 4 to 7 removed, held-out perplexity is 83.17 on the full set. The codebook brings it back to 20.24, LoRA to 18.62; the intact model is at 16.04. With blocks 4 and 5 removed, from 35.63 the codebook reaches 18.29 and LoRA 17.32. LoRA trains 4.7 to 4.8 million numbers here, the codebook 190 million.</span><span lang="zh-CN">拿掉第 4 到第 7 块后，全量留出集上的困惑度是 83.17。码表把它拉回到 20.24，LoRA 拉到 18.62；完整的模型是 16.04。拿掉第 4、5 块时，从 35.63 出发，码表到 18.29，LoRA 到 17.32。这里 LoRA 训练 470 万到 480 万个参数，码表训练 1.9 亿个。</span></p>
+        <p class="hint mono"><span lang="en">Switch between the two levels of damage.</span><span lang="zh-CN">切换两档损伤。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">3.3</span>
+        <h3><span lang="en">The rows do part of the work.</span><span lang="zh-CN">修复里有一部分是行在干活。</span></h3>
+        <p><span lang="en">Replace the codebook’s rows with random ones and the repair gets clearly worse: with blocks 4 to 7 removed, held-out perplexity rises from 20.24 to 30.28, and WikiText from 19.91 to 29.91. So the table really does stand in for some of the removed computation. On TriviaQA, which falls from 21.25% to 0.35% without repair, both repairs get back about half, the codebook to 10.85% and LoRA to 10.45%, level with each other.</span><span lang="zh-CN">把码表查到的行换成随机的，修复就明显变差：拿掉第 4 到第 7 块时，留出集困惑度从 20.24 升到 30.28，WikiText 从 19.91 升到 29.91。可见表确实顶上了被拿掉的一部分计算。TriviaQA 在不修复时从 21.25% 跌到 0.35%，两种修复都只找回一半左右，码表 10.85%，LoRA 10.45%，彼此持平。</span></p>
+        <p class="hint mono"><span lang="en">Switch between the three measures.</span><span lang="zh-CN">切换三项指标。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">3.4</span>
+        <h3><span lang="en">On facts, the codebook holds up better after milder damage.</span><span lang="zh-CN">损伤较轻时，码表在事实问答上更稳。</span></h3>
+        <p><span lang="en">With blocks 4 and 5 removed, TriviaQA falls to 7.40%. The codebook brings it back to 13.30%, LoRA to 10.55%. The gap, 2.75 points, is about three standard errors of a single score; we did not run a paired test. It echoes chapter 2, where LoRA lost 1.9 points on facts and the codebook lost none. One possible reading is that LoRA reshapes the whole model to fit its training text, while a codebook miss leaves the model as it was. We have not tested that.</span><span lang="zh-CN">拿掉第 4、5 块后，TriviaQA 跌到 7.40%。码表把它拉回到 13.30%，LoRA 到 10.55%。2.75 个百分点的差距，约为单项得分的三个标准误；我们没有做配对检验。这和第二章的现象一致：在那里 LoRA 在事实问答上掉了 1.9 个百分点，码表一点没掉。一种可能的解释是，LoRA 为了贴合训练文本改动了整个模型，而码表没查到的地方，模型保持原样。这一点我们还没有验证。</span></p>
+        <p class="hint mono"><span lang="en">Switch between the three measures.</span><span lang="zh-CN">切换三项指标。</span></p>
+        <p class="takeaway"><span lang="en">In a frozen model, a trained codebook can take over part of the work of removed layers, and its rows carry that work. But LoRA, with about a fortieth of the trainable numbers, repairs perplexity further. Is the table the problem, or the way we trained it?</span><span lang="zh-CN">在冻结的模型里，训练出来的码表能接管被拿掉那几层的一部分工作，而且干活的确实是它的行。但 LoRA 只用约四十分之一的可训练参数，就把困惑度修得更低。问题出在表本身，还是出在我们训练它的方式？</span></p>
+      </article>
+    </div>
+    <div class="stage">
+      <div class="stage-meta mono"><span class="stage-fig"></span><span lang="en">DATA: OUR RUNS · QWEN3-0.6B-BASE</span><span lang="zh-CN">数据：本文实验 · QWEN3-0.6B-BASE</span></div>
+      <div class="stage-scenes"></div>
+    </div>
+  </div>
+</section>
+
+<div class="prose"><h2><span lang="en">4. A table you can count</span><span lang="zh-CN">四、不用训练、直接统计出来的表</span></h2>
+  <p><span lang="en">So far every table was trained end to end, and none did better than LoRA. Perhaps the training was simply failing to find a good table. So we asked a more basic question: how much of what a feed-forward layer outputs depends only on the last few words? If it is a lot, there is no need to train a table. We can count it instead: run the intact model over text, and average each layer’s output for each n-gram.</span><span lang="zh-CN">到这里为止，所有的表都是端到端训练出来的，没有一张比得过 LoRA。也许只是训练没找到好的表。于是我们问一个更根本的问题：一个前馈层的输出，有多少只取决于最后几个词？如果很多，那就根本不用训练表，直接统计就行：让完整的模型把文本跑一遍，按 n-gram 把每一层的输出求平均。</span></p>
+</div>
+
+<section class="scrolly-block" data-chapter="4">
+  <div class="scrolly">
+    <div class="steps">
+      <article class="step">
+        <span class="step-no mono">4.1</span>
+        <h3><span lang="en">Early feed-forward layers look mostly like lookups.</span><span lang="zh-CN">浅层的前馈层，大半像是在查表。</span></h3>
+        <p><span lang="en">We averaged each layer’s output over 20 million words, grouped by the three-word n-gram ending at each position, falling back to two words and then to the current word when the codebook has no entry. On about half a million held-out words, these averages explain 72% of the variance of block 2’s output, and 63% of blocks 4 and 5. Deeper, it falls to 20% to 40%. The current word alone explains about 40% in the early blocks; the words before it add more than 20 points. Block 3 is the exception: the n-gram explains none of its output. Like block 2, it is a block whose removal breaks the model.</span><span lang="zh-CN">我们在 2000 万个词上，把每一层的输出按“以该位置结尾的三词 n-gram”分组求平均；码表里没有这个三词条目，就退回两词，再退回到当前这个词。在约 50 万个留出的词上，这些平均值能解释第 2 块输出方差的 72%，第 4、5 块的 63%。往深处降到 20% 到 40%。浅层里，单看当前这个词就能解释约 40%，前面的词再多解释 20 多个百分点。第 3 块是个例外：n-gram 完全解释不了它的输出。而它和第 2 块一样，是拿掉就会让模型崩溃的块。</span></p>
+        <p class="hint mono"><span lang="en">Explained variance, block by block.</span><span lang="zh-CN">逐块看被解释的方差。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">4.2</span>
+        <h3><span lang="en">Swap whole layers for their averages.</span><span lang="zh-CN">把整层换成它的平均值。</span></h3>
+        <p><span lang="en">Then we replaced whole feed-forward layers with these averages, with no training at all. With blocks 4 to 7 replaced, perplexity on 256 held-out sequences is 20.31, against 85.73 with the layers removed and 15.75 intact: as good as the codebook we trained for 5,000 steps. With blocks 4 and 5, it is 17.80, better than the trained codebook. Two controls show what the n-grams add. A single fixed vector in place of each layer gives 49.19 for blocks 4 to 7; averaging by the current word alone gives 25.02. Block 2 is striking: on these 256 sequences, removing its feed-forward layer sends perplexity to 10,940, yet one fixed vector brings it back to 19.19 and the lookup to 16.88. Much of what that layer does is constant.</span><span lang="zh-CN">接着，我们把整个前馈层直接换成这些平均值，完全不训练。把第 4 到第 7 块换掉，256 条留出序列上的困惑度是 20.31；直接拿掉是 85.73，完整的模型是 15.75。这和我们训练了 5000 步的码表一样好。只换第 4、5 块是 17.80，比训练出来的码表还好。两个对照说明了 n-gram 的作用：每层换成一个固定的向量，第 4 到第 7 块是 49.19；只按当前这个词求平均，是 25.02。第 2 块尤其醒目：在这 256 条序列上，拿掉它的前馈层，困惑度升到 10,940，可一个固定的向量就把它拉回到 19.19，查表拉回到 16.88。这一层做的事，很大一部分是常数。</span></p>
+        <p class="hint mono"><span lang="en">Switch which blocks are replaced.</span><span lang="zh-CN">切换换掉哪几块。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">4.3</span>
+        <h3><span lang="en">Count first, then repair.</span><span lang="zh-CN">先统计，再修复。</span></h3>
+        <p><span lang="en">Starting from the counted table for blocks 4 to 7, we trained LoRA exactly as in chapter 3. At its first checkpoint, step 1,000, it was already ahead of LoRA alone after all 5,000 steps: 17.56 against 18.56 on 256 sequences. Starting from the counted table is far better than asking LoRA to fill an empty hole.</span><span lang="zh-CN">在第 4 到第 7 块的统计表基础上，我们完全按第三章的方式训练 LoRA。到第一个检查点，也就是第 1000 步，它就已经领先于单独的 LoRA 训满 5000 步的结果：256 条序列上 17.56 对 18.56。比起让 LoRA 从零补一个空洞，从统计表出发要好得多。</span></p>
+        <p class="hint mono"><span lang="en">Compare with LoRA alone and the trained codebook.</span><span lang="zh-CN">和单独的 LoRA、训练出来的码表对比。</span></p>
+      </article>
+      <article class="step">
+        <span class="step-no mono">4.4</span>
+        <h3><span lang="en">Ahead on all three measures, in this test.</span><span lang="zh-CN">这次对照里，三项指标全部领先。</span></h3>
+        <p><span lang="en">On the full held-out set, the counted table plus LoRA reaches 17.38, against 18.62 for LoRA alone, 20.24 for the trained codebook and 20.37 for the counted table without training. WikiText: 16.83 against 17.99. TriviaQA: 13.45% against 10.45%, a gap of three points, about three standard errors of a single score, in one run. Even without training, the counted table kept more facts than LoRA, at 12.45%. The cost is memory: the four tables hold about 3.9 GB in 16-bit numbers, against 75 MB for the four layers they replace. But they need almost no computation, and as the previous article showed, a table read a few rows at a time can live in RAM or on disk.</span><span lang="zh-CN">在全量留出集上，统计表加 LoRA 达到 17.38；单独的 LoRA 是 18.62，训练出来的码表 20.24，不训练的统计表 20.37。WikiText：16.83 对 17.99。TriviaQA：13.45% 对 10.45%，差 3 个百分点，约为单项得分的三个标准误，只来自一次实验。即使不训练，统计表保住的事实也比 LoRA 多，是 12.45%。代价是存储：四张表用 16 位精度存约 3.9 GB，而它们替换掉的四个前馈层只有 75 MB。但它们几乎不需要计算；上一篇文章讲过，每次只读几行的表，可以放在内存或硬盘上。</span></p>
+        <p class="hint mono"><span lang="en">Switch between the three measures.</span><span lang="zh-CN">切换三项指标。</span></p>
+        <p class="takeaway"><span lang="en">With our recipe, training a table onto a frozen model did not beat LoRA; but the model can be read into a table. Averaging an early layer’s output by n-gram gives a table that stands in for most of that layer without training, and a light LoRA on top recovered more than LoRA alone. By analogy, that is one way to move an ordinary model toward Engram’s shape: memory in place of some early computation.</span><span lang="zh-CN">按我们的训练配方，在冻结的模型上训练一张表，比不过 LoRA；但模型自己算出来的东西，可以直接统计成一张表。把浅层的输出按 n-gram 求平均，得到的表不经训练就能顶住这一层的大部分工作；再在上面加一点 LoRA，补回来的比单独用 LoRA 还多。打个比方，这是把一个普通模型往 Engram 的样子改造的一条路：用记忆替换掉一部分浅层计算。</span></p>
+      </article>
+    </div>
+    <div class="stage">
+      <div class="stage-meta mono"><span class="stage-fig"></span><span lang="en">DATA: OUR RUNS · QWEN3-0.6B-BASE</span><span lang="zh-CN">数据：本文实验 · QWEN3-0.6B-BASE</span></div>
+      <div class="stage-scenes"></div>
+    </div>
+  </div>
+</section>
+
+<details class="tech"><summary class="mono"><span lang="en">TECHNICAL DETAILS: THE SETUP</span><span lang="zh-CN">技术细节：实验设置</span></summary>
+  <p><span lang="en">Tables sit before blocks 2 and 10 (pre-hooks on decoder layers 1 and 9 in the code, which counts from 0). Token ids are normalised as in V4.1’s code (NFKC, NFD, accents stripped, lowercase, whitespace collapsed), shrinking Qwen3’s vocabulary to 106,429 ids. Hashed tables use n-grams of orders 2 and 3 with 4 heads each and 128 numbers per row; one multiplicative-XOR chain per layer is reduced by a different prime for each head. Codebooks use one 256-number row per n-gram, found by binary search over sorted keys. Retrieved rows are projected to a key and a value; the gate is a sigmoid of the signed square root of the scaled dot product between the normalised hidden state and the normalised key, as in V4.1’s released code rather than the paper’s formula. Every row starts as zeros. Training: AdamW (β 0.9, 0.95), no weight decay, learning rate 10<sup>-3</sup> for projections and 1× or 5× that for rows, 200 warm-up steps, cosine decay over 10,000 steps of 32 × 1,024 tokens. LoRA: rank 8, α 16, on all linear layers, learning rate 2 × 10<sup>-4</sup>. Evaluation: 2,025 held-out sequences of 1,024 tokens from a different FineWeb-Edu shard; the WikiText-103 test set; 2,000 TriviaQA questions (rc.nocontext validation), five-shot, greedy, exact match against the normalised aliases. Chapter 3: the feed-forward layers of blocks 4–7 or 4–5 (layers 3–6 or 3–4 in the code) output zeros; the ≥ 50 codebook sits before blocks 4 and 10; runs last 5,000 steps with the same schedule shape and 32 × 1,024 tokens per step (micro-batches of 8 × 4 or 4 × 8, depending on the GPU’s free memory). Chapter 4: averages come from 20,000,000 training tokens; R² is measured on 524,288 held-out tokens (512 sequences) as one minus the squared error of the averages divided by that of the overall training mean; each position uses its three-word entry in the ≥ 50 codebook if seen, else its two-word entry, else its current token, else the overall mean. On held-out text, 70% of positions have a two-word entry and 25% a three-word one. Each layer’s table holds about 474,000 rows of 1,024 numbers. LoRA on top of the tables uses the chapter 3 settings.</span><span lang="zh-CN">表挂在第 2 块和第 10 块之前（代码里从 0 数，是第 1、9 层上的 pre-hook）。token id 按 V4.1 代码里的方式规范化（NFKC、NFD、去掉重音、转小写、合并空白），Qwen3 的词表因此缩到 106,429 个 id。哈希表取 2 阶和 3 阶 n-gram，每阶 4 个头，每行 128 个数；每层用一条乘法加异或的哈希链，再按每个头各自的素数取模。码表每个 n-gram 一行，每行 256 个数，在排好序的键上用二分查找。查到的行投影成 key 和 value；门控的算法是：先把隐藏状态和 key 各自规范化，求缩放点积，再取带符号的平方根，最后过 sigmoid。这是 V4.1 公开代码里的写法，和论文里的公式不同。所有行的初始值都是 0。训练：AdamW（β 0.9、0.95），无权重衰减，投影的学习率 10<sup>-3</sup>，表的学习率为它的 1 倍或 5 倍，预热 200 步，余弦衰减，共 10,000 步，每步 32 × 1,024 个 token。LoRA：秩 8，α 16，作用于所有线性层，学习率 2 × 10<sup>-4</sup>。评估：取自另一个 FineWeb-Edu 分片的 2,025 条留出序列，每条 1,024 个 token；WikiText-103 测试集；TriviaQA（rc.nocontext 验证集）2,000 题，5-shot，贪心解码，与规范化后的答案别名做精确匹配。第三章：把第 4–7 块或第 4–5 块（代码里是第 3–6 层或第 3–4 层）的前馈层改为输出全零；≥ 50 的码表放在第 4 块和第 10 块之前；每组训练 5,000 步，学习率曲线不变，每步仍是 32 × 1,024 个 token（按显卡剩余显存，每次 8 条累积 4 次，或每次 4 条累积 8 次）。第四章：平均值取自 20,000,000 个训练 token；R² 在 524,288 个留出 token（512 条序列）上计算，定义为 1 减去“平均值的平方误差”与“训练集总体平均的平方误差”之比；每个位置若在 ≥ 50 码表里有三词条目且见过，就用三词，否则用两词，再否则用当前这个词，都没有就用总体平均。在留出文本上，70% 的位置有两词条目，25% 有三词条目。每层的表约 474,000 行，每行 1,024 个数。统计表上的 LoRA 沿用第三章的设置。</span></p>
+</details>
+
+<div class="prose">
+  <h2><span lang="en">How this compares</span><span lang="zh-CN">和已有工作比</span></h2>
+  <ul>
+    <li><span lang="en"><b>The Engram paper</b> trains tables and model together, on far more data than we used. Its analysis suggests the table relieves the early layers of rebuilding static patterns. A frozen model cannot reorganise like that, which may be why we see so much less.<sup><a href="#ref-1">1</a></sup></span><span lang="zh-CN"><b>Engram 论文</b>是把表和模型一起训练的，用的数据比我们多得多。它的分析表明，表让浅层不必再重新拼出那些固定的模式。冻结的模型没法这样重新分工，这也许就是我们看到的收益小得多的原因。<sup><a href="#ref-1">1</a></sup></span></li>
+    <li><span lang="en"><b>TF-Engram</b> also used a frozen Qwen3-0.6B, but built its table offline without training and evaluated on its own benchmark suite, reporting an average of 57.6 rising to 59.4. Its numbers and ours are not directly comparable. The tables in chapter 4 are also built without training, but from the model’s own feed-forward outputs, so they line up with what the model computes.<sup><a href="#ref-3">3</a></sup></span><span lang="zh-CN"><b>TF-Engram</b> 用的也是冻结的 Qwen3-0.6B，但它的表是离线构建的、不经训练，评测用的是它自己那一套基准，报告的平均分从 57.6 提到 59.4。它的数字和我们的不能直接比。第四章的表同样不经训练，但它取自模型自己前馈层的输出，所以天然和模型的计算对得上。<sup><a href="#ref-3">3</a></sup></span></li>
+    <li><span lang="en"><b>SCONE</b> adds n-gram embeddings to the input layer and trains them with the model, so it too is not a retrofit onto a frozen model.<sup><a href="#ref-4">4</a></sup></span><span lang="zh-CN"><b>SCONE</b> 在输入层加了 n-gram 嵌入，并和模型一起训练，所以它也不是给冻结模型后装。<sup><a href="#ref-4">4</a></sup></span></li>
+    <li><span lang="en"><b>Sparse upcycling</b> turns a dense model into a mixture of experts by copying its feed-forward layers into experts and training on. Chapter 4 is a cousin of that idea: it turns early feed-forward layers into lookup tables by averaging what they compute.<sup><a href="#ref-7">7</a></sup></span><span lang="zh-CN"><b>稀疏升级（sparse upcycling）</b>把稠密模型的前馈层复制成多个专家，再继续训练，从而把它改成混合专家模型。第四章的做法和它是近亲：把浅层前馈层算出来的东西求平均，变成查找表。<sup><a href="#ref-7">7</a></sup></span></li>
+    <li><span lang="en"><b>LoRA</b> was cheaper and better on text like its training data. The codebook’s one advantage here is that a miss leaves the model untouched; on facts we detected no loss, where LoRA lost 1.9 points.<sup><a href="#ref-5">5</a></sup></span><span lang="zh-CN"><b>LoRA</b> 更省，在和训练数据同类的文本上也更好。码表在这里唯一的优势是：没查到的地方完全不改动模型；在事实问答上没有测出损失，而 LoRA 掉了 1.9 个百分点。<sup><a href="#ref-5">5</a></sup></span></li>
+  </ul>
+
+  <h2><span lang="en">Fair warnings</span><span lang="zh-CN">需要说明的几点</span></h2>
+  <ul>
+    <li><span lang="en"><b>One small model, one seed.</b> Qwen3-0.6B-Base, 330 million training words, every run once. A larger budget might change the hashed result.</span><span lang="zh-CN"><b>一个小模型，一个随机种子。</b>只用了 Qwen3-0.6B-Base，3.3 亿个训练词，每组只跑了一次。训练量更大的话，哈希表的结论可能会变。</span></li>
+    <li><span lang="en"><b>Small differences are noise.</b> With 2,000 questions, TriviaQA scores have a standard error of about 0.9 points. Treat gaps of a point or so as no difference.</span><span lang="zh-CN"><b>小差距是噪声。</b>TriviaQA 只有 2000 道题，标准误约 0.9 个百分点。一个百分点上下的差距，应当看作没有差别。</span></li>
+    <li><span lang="en"><b>The two hashed tables differ in two ways.</b> The big one also had a five-fold learning rate on its rows, so its size and its learning rate are not separated.</span><span lang="zh-CN"><b>两张哈希表有两处不同。</b>大表的表学习率还调高了五倍，所以“表的大小”和“学习率”的影响没有分开。</span></li>
+    <li><span lang="en"><b>Chapter 3 is smaller still.</b> The repairs ran 5,000 steps, half as long as chapters 1 and 2, at two levels of damage, and the single-layer sweep used 64 sequences. The codebook’s 2.75-point lead on facts is one run.</span><span lang="zh-CN"><b>第三章的规模更小。</b>修复只训练了 5000 步，是前两章的一半，只试了两档损伤；逐层扫描只用了 64 条序列。码表在事实问答上领先的 2.75 个百分点，只来自一次实验。</span></li>
+    <li><span lang="en"><b>Chapter 4’s tables are far bigger than the layers they replace.</b> They trade memory for computation, and we have not yet measured whether removing four of 28 feed-forward layers makes the model faster in practice. The replacement test used 256 sequences, the counted table plus LoRA is one run, and counting the tables itself took forward passes over 20 million tokens.</span><span lang="zh-CN"><b>第四章的表比它们替换掉的层大得多。</b>这是用存储换计算；拿掉 28 个前馈层里的 4 个，实际能快多少，我们还没有测。替换测试只用了 256 条序列，统计表加 LoRA 也只跑了一次；统计这些表本身，也要在 2000 万个 token 上跑一遍前向。</span></li>
+    <li><span lang="en"><b>The memorisation story is a reading, not a measurement.</b> We did not count how often each row was trained, or compare each row’s effect on training and held-out text.</span><span lang="zh-CN"><b>“记住了文档细节”是解释，不是测量。</b>我们没有统计每一行被训练了多少次，也没有逐行比较它在训练文本和留出文本上的作用。</span></li>
+    <li><span lang="en"><b>The recipe is ours.</b> The lookup follows V4.1’s released inference code, but DeepSeek has not released how it trains the tables. The learning rate on the rows clearly matters.</span><span lang="zh-CN"><b>训练方法是我们自己定的。</b>查表的方式照着 V4.1 公开的推理代码，但 DeepSeek 没有公开它怎么训练这些表。表的学习率显然有影响。</span></li>
+    <li><span lang="en"><b>A discarded first attempt.</b> Our first runs accidentally used the chat-tuned Qwen3-0.6B. Training on FineWeb-Edu then mostly undid its chat tuning, which swamped any effect of the table, so we discarded those runs and started again from the base model.</span><span lang="zh-CN"><b>第一轮实验作废了。</b>最初几组误用了经过对话微调的 Qwen3-0.6B。在 FineWeb-Edu 上一训练，主要效果是把它的对话微调抹掉，表本身的作用被完全掩盖。我们弃用了那几组，换成基座模型重做。</span></li>
+  </ul>
+
+  <h2><span lang="en">What comes next</span><span lang="zh-CN">接下来</span></h2>
+  <ul>
+    <li><span lang="en"><b>Closer to free.</b> Replace fewer layers, repair by distilling from the intact model rather than by LoRA on text, and measure the real speed and memory on the machines from the previous article.</span><span lang="zh-CN"><b>离“免费”更近一点。</b>少换几层，拿完整的模型当教师做蒸馏修复，而不是在文本上训 LoRA；再在上一篇提到的那几台机器上，实测速度和内存。</span></li>
+    <li><span lang="en"><b>Edit a row.</b> Every row of a counted table belongs to one phrase and holds what the model computes for it. Can rewriting a row change what the model says about that phrase, and nothing else?</span><span lang="zh-CN"><b>改一行试试。</b>统计表的每一行都对应一个具体的短语，存的是模型为它算出来的东西。改写其中一行，能不能只改变模型关于这个短语的说法，而不波及其他？</span></li>
+    <li><span lang="en"><b>Go bigger.</b> One 0.6-billion-parameter model is a small test. We want to know whether larger models are as much of a lookup in their early layers, and whether the same recipe works on mixture-of-experts models, replacing experts instead of whole layers.</span><span lang="zh-CN"><b>做得更大。</b>一个 6 亿参数的模型只是一次小规模的测试。我们想知道，更大的模型浅层是不是同样大半在查表；同样的办法用在混合专家模型上，替换的是专家而不是整层，还行不行得通。</span></li>
+  </ul>
+</div>
+
+<section class="references">
+  <h2><span lang="en">REFERENCES</span><span lang="zh-CN">参考文献</span></h2>
+  <ol>
+    <li id="ref-1">Cheng et al. <a href="https://arxiv.org/abs/2601.07372">“Conditional Memory via Scalable Lookup: A New Axis of Sparsity for Large Language Models”</a> (2026).</li>
+    <li id="ref-2">DeepSeek V4.1 Flash inference code: <a href="https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash/blob/main/inference/model.py">inference/model.py</a>.</li>
+    <li id="ref-3"><a href="https://arxiv.org/abs/2607.07388">“TF-Engram: A Train-Free Engram with SSD-Backed Memory for Large Language Models”</a> (2026).</li>
+    <li id="ref-4">Yu et al. <a href="https://arxiv.org/abs/2502.01637">“Scaling Embedding Layers in Language Models”</a> (SCONE, 2025).</li>
+    <li id="ref-5">Hu et al. <a href="https://arxiv.org/abs/2106.09685">“LoRA: Low-Rank Adaptation of Large Language Models”</a> (2021).</li>
+    <li id="ref-6">Data: <a href="https://huggingface.co/datasets/HuggingFaceFW/fineweb-edu">FineWeb-Edu</a> (Penedo et al., 2024); <a href="https://arxiv.org/abs/1609.07843">WikiText-103</a> (Merity et al., 2016); <a href="https://arxiv.org/abs/1705.03551">TriviaQA</a> (Joshi et al., 2017). Model: <a href="https://huggingface.co/Qwen/Qwen3-0.6B-Base">Qwen3-0.6B-Base</a>.</li>
+    <li id="ref-7">Komatsuzaki et al. <a href="https://arxiv.org/abs/2212.05055">“Sparse Upcycling: Training Mixture-of-Experts from Dense Checkpoints”</a> (2022).</li>
+    <li id="ref-8">Code, configurations and raw results: <a href="https://github.com/sec4si/engram-retrofit">github.com/sec4si/engram-retrofit</a>.</li>
+  </ol>
+</section>
+</main>
+
+<footer class="mono"><a class="footer-brand" href="https://sec4.si/">SEC4.SI / SECURITY FOR SI</a><span class="research-labels">LLM / INFERENCE / AGENT</span><div class="footer-links"><a href="https://benchmark.sec4.si/">Benchmark ↗</a><a href="https://lens.sec4.si/">Lens ↗</a><span>© 2026 SEC4SI</span></div><a class="site-address" href="https://infer.sec4.si/">infer.sec4.si</a></footer>
+<script type="module" src="./article.js"></script></body></html>
